@@ -98,13 +98,21 @@ def _remember(ev):
         return
     live, t = run.setdefault("live", {}), ev["type"]
     if t == "agentic.start":
-        live["agentic"] = {"spans": ev["spans"], "mode": ev["mode"], "decisions": []}
+        live["agentic"] = dict(live.get("agentic", {}), spans=ev["spans"], mode=ev["mode"], decisions=[])
     elif t == "agentic.decision":
-        live.setdefault("agentic", {"decisions": []})["decisions"].append(ev)
+        live.setdefault("agentic", {}).setdefault("decisions", []).append(ev)
     elif t == "semantic.distances":
-        live["semantic"] = {"distances": ev}
+        live.setdefault("semantic", {})["distances"] = ev
     elif t == "propositional.passage":
-        live.setdefault("propositional", {"passages": []})["passages"].append(ev)
+        live.setdefault("propositional", {}).setdefault("passages", []).append(ev)
+
+
+def _count_call(ev):
+    run = runner.runs.get(ev.get("run"))
+    strategy = (run or {}).get("progress", {}) or {}
+    if run and strategy.get("strategy") and not runner.in_trial:
+        slot = run.setdefault("live", {}).setdefault(strategy["strategy"], {})
+        slot["calls"] = slot.get("calls", 0) + 1
 
 
 def on_event(ev):
@@ -117,8 +125,10 @@ def on_event(ev):
             _remember(ev)
             hub.publish(t, ev)
     elif t in CALLS:
+        _count_call(ev)
         hub.publish("call", {k: ev.get(k) for k in ("type", "ts", "run", "backend", "ms", "ok", "error", "n",
-                                                     "tokens_per_s", "completion_tokens", "json")})
+                                                     "tokens_per_s", "completion_tokens", "json")}
+                    | {"trial": runner.in_trial})
     elif t == "cache.lookup":
         hub.publish("cache", ev)
 

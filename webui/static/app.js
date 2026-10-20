@@ -286,7 +286,7 @@
     on('fallback', (d) => addLog({ ts: d.ts, text: `fallback ${d.strategy}: ${d.reason}`, cls: 'warn' }));
     on('call', (d) => {
       const r = d.run && runFor(d.run);
-      if (r) { const res = r.results[r.progress?.strategy]; if (res) { res.calls = (res.calls || 0) + 1; if (S.tab === r.progress.strategy) renderStats(); } }
+      if (r && !d.trial) { const res = r.results[r.progress?.strategy]; if (res && !res.trial) { res.calls = (res.calls || 0) + 1; if (S.tab === r.progress.strategy) renderStats(); } }
       if (!d.ok) addLog({ ts: d.ts, text: `${d.type} ${d.backend} failed: ${d.error}`, cls: 'err' });
       else if (S.logCalls) addLog({ ts: d.ts, text: `${d.type === 'llm.call' ? 'llm' : 'embed'} ${d.backend}${d.n ? ` ×${d.n}` : ''} ${fmtMs(d.ms)}${d.tokens_per_s ? ` · ${d.tokens_per_s} tok/s` : ''}` });
     });
