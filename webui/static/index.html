@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chunk Monitor · rag-chunking</title>
+  <meta name="description" content="Live health, stability and state for the rag-chunking pipeline: backends, latency, fallbacks, and chunk boundaries as they are placed.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%227%22 fill=%22%230a0b0d%22/%3E%3Crect x=%226%22 y=%228%22 width=%229%22 height=%2216%22 rx=%222%22 fill=%22%236d86ff%22/%3E%3Crect x=%2218%22 y=%228%22 width=%228%22 height=%2216%22 rx=%222%22 fill=%22%233fcf8e%22/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css?v=6">
+  <script>window.__API_BASE__ = '__PORT_8000__';</script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-name">Chunk Monitor</span>
+      <span class="brand-sub">rag-chunking</span>
+    </div>
+    <div class="overall" id="overall" data-testid="status-overall" data-status="unknown">
+      <span class="overall-icon" aria-hidden="true"></span>
+      <span class="overall-label">Connecting</span>
+    </div>
+    <div class="conn" id="conn" data-testid="status-connection" data-state="connecting">
+      <span class="conn-dot" aria-hidden="true"></span><span class="conn-label">Connecting</span>
+    </div>
+    <div class="settings" role="group" aria-label="Model backends">
+      <label class="field-inline"><span>Embedder</span>
+        <select id="sel-embed" data-testid="select-embedder"></select></label>
+      <label class="field-inline"><span>LLM</span>
+        <select id="sel-llm" data-testid="select-llm"></select></label>
+      <button class="btn btn-quiet" id="btn-apply" data-testid="button-apply-settings" disabled>Apply</button>
+      <button class="btn btn-icon" id="btn-probe" data-testid="button-probe" title="Probe backends now" aria-label="Probe backends now">
+        <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+      </button>
+      <button class="btn btn-icon" id="btn-theme" data-testid="button-theme" title="Toggle theme" aria-label="Toggle light or dark theme">
+        <svg viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="col-main">
+      <article class="card" id="card-run">
+        <header class="card-head">
+          <h2>Run</h2>
+          <div class="seg" role="tablist" aria-label="Document source" id="source-seg"></div>
+        </header>
+        <textarea id="doc" class="doc-input" spellcheck="false" data-testid="input-document" aria-label="Document text"></textarea>
+        <div class="run-controls">
+          <div class="chips" id="strategy-chips" role="group" aria-label="Strategies"></div>
+          <div class="run-params">
+            <label class="field"><span>Size</span><input id="in-size" type="number" min="10" max="2000" value="80" data-testid="input-size"></label>
+            <label class="field"><span>Overlap</span><input id="in-overlap" type="number" min="0" max="500" value="0" data-testid="input-overlap"></label>
+            <label class="toggle"><input id="in-stability" type="checkbox" data-testid="toggle-stability"><span>Stability check</span></label>
+            <button class="btn btn-primary" id="btn-run" data-testid="button-run">
+              <svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg>Run</button>
+            <button class="btn btn-danger" id="btn-cancel" data-testid="button-cancel" hidden>
+              <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>Cancel</button>
+          </div>
+          <p class="hint" id="run-hint"></p>
+        </div>
+      </article>
+
+      <article class="card card-live" id="card-live">
+        <header class="card-head">
+          <h2>Live view</h2>
+          <span class="run-meta mono" id="run-meta" data-testid="text-run-meta">No run yet</span>
+        </header>
+        <nav class="tabs" id="tabs" role="tablist" aria-label="Strategies in this run"></nav>
+        <div class="stat-strip" id="stat-strip" data-testid="stats-strategy"></div>
+        <div class="live-body wide">
+          <div class="docmap" id="docmap" data-testid="view-docmap" aria-live="polite">
+            <p class="empty">Run a strategy to watch the boundaries appear.</p>
+          </div>
+          <div class="side-panel" id="side-panel"></div>
+        </div>
+      </article>
+
+      <article class="card" id="card-compare">
+        <header class="card-head"><h2>Comparison</h2><span class="muted">current run</span></header>
+        <div class="table-wrap"><table class="table" id="compare" data-testid="table-compare">
+          <thead><tr><th>Strategy</th><th>Status</th><th class="num">Chunks</th><th class="num">Avg tok</th>
+            <th class="num">Min–max</th><th class="num">Mid-sentence cuts</th><th class="num">Stability</th><th class="num">Time</th></tr></thead>
+          <tbody><tr><td colspan="8" class="empty">No results yet.</td></tr></tbody>
+        </table></div>
+      </article>
+    </section>
+
+    <aside class="col-side">
+      <article class="card" id="card-health">
+        <header class="card-head"><h2>Health</h2><span class="muted mono" id="health-updated">–</span></header>
+        <ul class="components" id="components" data-testid="list-components"></ul>
+      </article>
+
+      <article class="card" id="card-stability">
+        <header class="card-head"><h2>Stability</h2><span class="muted">last 5–10 min</span></header>
+        <div class="kpis" id="kpis"></div>
+        <div class="timeline-wrap">
+          <div class="label-row"><span>Overall status</span><span class="muted mono" id="timeline-span">5 min</span></div>
+          <div class="timeline" id="timeline" data-testid="chart-status-timeline" role="img" aria-label="Overall status over time"></div>
+        </div>
+        <div class="chart-block">
+          <div class="label-row"><span>Embedding latency</span><span class="legend"><i class="lg p50"></i>p50 <i class="lg p95"></i>p95</span></div>
+          <div class="chart" id="chart-embed" data-testid="chart-embed-latency"></div>
+        </div>
+        <div class="chart-block">
+          <div class="label-row"><span>LLM latency</span><span class="legend"><i class="lg p50"></i>p50 <i class="lg p95"></i>p95</span></div>
+          <div class="chart" id="chart-llm" data-testid="chart-llm-latency"></div>
+        </div>
+      </article>
+
+      <article class="card" id="card-models">
+        <header class="card-head"><h2>Model state</h2><span class="muted" id="models-sub">Ollama</span></header>
+        <ul class="models" id="models" data-testid="list-models"></ul>
+      </article>
+
+      <article class="card card-log" id="card-log">
+        <header class="card-head"><h2>Events</h2>
+          <label class="toggle small"><input type="checkbox" id="log-calls" checked data-testid="toggle-log-calls"><span>Model calls</span></label>
+        </header>
+        <ol class="log mono" id="log" data-testid="list-events"></ol>
+      </article>
+    </aside>
+  </main>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <script src="./app.js?v=6"></script>
+</body>
+</html>

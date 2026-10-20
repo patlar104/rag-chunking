@@ -1,0 +1,9 @@
+# Optional extras. The core package and Ollama support need nothing beyond the standard library.
+sentence-transformers     # --embed st[:model]
+openai                    # --embed openai / --llm openai (or any OpenAI-compatible server)
+langchain-core            # chunking.integrations.langchain
+langchain-text-splitters  # chunking.integrations.langchain
+llama-index-core          # chunking.integrations.llama_index
+fastapi                   # python -m webui.server
+uvicorn                   # python -m webui.server
+httpx                     # web UI tests (fastapi TestClient)
