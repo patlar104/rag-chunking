@@ -1,0 +1,26 @@
+# Repository-owned Codex local environment. No automatic dependency installation.
+version = 1
+name = "rag-chunking"
+
+[setup]
+script = "python3 -B .codex/scripts/workspace.py doctor"
+
+[[actions]]
+name = "Check"
+icon = "test"
+command = "python3 -B .codex/scripts/workspace.py check"
+
+[[actions]]
+name = "Compare Offline"
+icon = "run"
+command = "python3 -B .codex/scripts/workspace.py compare"
+
+[[actions]]
+name = "Dashboard"
+icon = "run"
+command = "python3 -B .codex/scripts/workspace.py dashboard"
+
+[[actions]]
+name = "Environment Status"
+icon = "debug"
+command = "python3 -B .codex/scripts/workspace.py doctor"

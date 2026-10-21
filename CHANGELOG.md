@@ -8,6 +8,9 @@ To cut a release, move the **Unreleased** items into a new version section, bump
 
 ## [Unreleased]
 
+### Added
+- Codex contributor guidelines, repository skills, and local environment actions for validation, offline comparisons, and the dashboard, using the existing project virtual environment.
+
 ## [0.5.0] - 2026-10-20
 
 ### Changed
