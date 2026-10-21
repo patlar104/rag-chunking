@@ -108,11 +108,7 @@ class DeepInfraTests(unittest.TestCase):
 
 class BudgetTests(unittest.TestCase):
     def test_llm_budget_blocks_after_limit(self):
-        try:
-            import fastapi  # noqa: F401  (webui package imports nothing web-specific in runner)
-        except ImportError:
-            pass
-        from webui.runner import Runner
+        from webui.runner import Runner  # stdlib only, no FastAPI needed
         r = Runner(lambda *a: None)
         r.llm_budget = 2
         self.assertTrue(r._take_llm_call() and r._take_llm_call())

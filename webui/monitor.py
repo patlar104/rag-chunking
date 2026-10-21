@@ -202,7 +202,7 @@ class HealthMonitor:
                                "params": (m.get("details") or {}).get("parameter_size")})
             installed = client.list_models()
         except ollama.OllamaError:
-            pass
+            pass  # the ping worked; model lists are best-effort and stay empty
         status = "ok" if ping < 250 else "degraded"
         return {"status": status, "host": client.host, "version": version, "ping_ms": ping,
                 "loaded": loaded, "installed": installed, "required": self._uses_ollama()}

@@ -195,7 +195,7 @@ def _available():
         import sentence_transformers  # noqa: F401
         embeds.append({"spec": "st:all-MiniLM-L6-v2", "label": "sentence-transformers · all-MiniLM-L6-v2"})
     except ImportError:
-        pass
+        pass  # sentence-transformers not installed: just don't offer it
     from chunking import deepinfra
     if deepinfra.configured():
         embeds.append({"spec": f"deepinfra:{deepinfra.DEFAULT_EMBED}", "label": f"DeepInfra · {deepinfra.DEFAULT_EMBED}"})

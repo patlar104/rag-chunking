@@ -141,9 +141,10 @@ class EventBus(unittest.TestCase):
         try:
             with events.timed("op", a=1) as info:
                 info["b"] = 2
-            with self.assertRaises(RuntimeError):
+            def failing_op():
                 with events.timed("op"):
                     raise RuntimeError("bad")
+            self.assertRaises(RuntimeError, failing_op)
         finally:
             events.current_run.reset(token)
             unsub()

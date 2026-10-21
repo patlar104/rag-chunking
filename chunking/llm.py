@@ -165,6 +165,8 @@ def ask_json(llm, prompt: str, schema: Optional[dict] = None, retries: int = 1) 
             if attempt < retries:
                 events.emit("llm.retry", backend=getattr(llm, "name", "custom"), reason=str(e)[:200])
     events.emit("llm.json_failure", backend=getattr(llm, "name", "custom"), reason=str(last_err)[:200])
+    if last_err is None:  # only possible with retries < 0
+        raise ValueError("ask_json needs retries >= 0")
     raise last_err
 
 
