@@ -15,6 +15,6 @@ Check these repo-specific invariants:
 5. **Events.** Model calls are wrapped in `events.timed`; new event types are documented in `chunking/events.py` and, if the dashboard shows them, added to `FORWARD` in `webui/server.py`.
 6. **Backend shape.** Embedders and LLMs stay duck-typed callables. Embedder query/document prefixes come from `KNOWN_PREFIXES`, not call sites. API keys are read from the environment and never logged, echoed in errors or written to test fixtures.
 7. **Tests.** New behaviour has a `unittest` test that needs no network or key; HTTP clients are tested against a fake local server. Live tests sit behind `CHUNKING_LIVE_*` variables.
-8. **Python version.** The project targets Python 3.13 and newer (3.15 recommended). Do not request 3.9 compatibility shims. Note, as a single line and not per finding, if `pyproject.toml`, ruff's `target-version` or the CI matrix still say otherwise.
+8. **Python version.** The project targets Python 3.13 and newer (3.15 recommended). Do not request compatibility shims for older versions, flag code that would not run on 3.13, and flag legacy typing (`typing.List`, `Optional[X]`) that ruff's pyupgrade rules (`UP`) would reject.
 
 Finish with a short verdict: ready, ready with nits, or needs changes. If you ran any commands, say which (`python -m unittest discover -s tests`, `ruff check .`) and what they returned.
