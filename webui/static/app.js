@@ -75,6 +75,7 @@
   }
   /** Time-series latency chart. series: [{values:[number|null], color, width}] */
   function lineChart(host, series, { fmt = fmtMs, emptyText = 'No calls yet' } = {}) {
+    if (!host) return;
     const w = host.clientWidth || 300, h = host.clientHeight || 90, padL = 44, padB = 14, padT = 4;
     const svg = svgEl('svg', { viewBox: `0 0 ${w} ${h}`, preserveAspectRatio: 'none', role: 'img' });
     const all = series.flatMap((s) => s.values.filter((v) => v != null));
@@ -112,6 +113,7 @@
   }
   /** Semantic distance curve with percentile threshold, cut spikes highlighted (like the reel). */
   function distanceChart(host, ev, cuts) {
+    if (!host) return;  // tab changed before the frame fired
     const w = host.clientWidth || 280, h = 150, padL = 30, padB = 16, padT = 8;
     const d = ev.distances, n = d.length;
     const svg = svgEl('svg', { viewBox: `0 0 ${w} ${h}`, role: 'img', 'aria-label': 'Distance between neighbouring sentence windows' });
@@ -514,7 +516,7 @@
     if (feed.firstElementChild && !feed.firstElementChild.dataset.i) feed.innerHTML = '';
     const li = document.createElement('li');
     li.dataset.i = d.index; if (d.boundary) li.className = 'b';
-    li.innerHTML = `<span class="i">#${d.index}</span><span class="t">${d.boundary ? `<strong>new chunk</strong> · ${esc(d.title || '')}` : 'continues'} <span class="muted">${esc(d.reason === 'llm' ? 'model' : d.reason)}</span></span><span class="ms">${fmtMs(d.ms)}</span>`;
+    li.innerHTML = `<span class="i">#${d.index}</span><span class="t">${d.boundary ? `<strong>new chunk</strong> · ${esc(d.title || '')}` : 'continues'} ${d.reason && d.reason !== 'continues' ? `<span class="muted">${esc(d.reason === 'llm' ? 'model' : d.reason)}</span>` : ''}</span><span class="ms">${fmtMs(d.ms)}</span>`;
     feed.appendChild(li);
     while (feed.children.length > 150) feed.firstElementChild.remove();
     if (!bulk) feed.scrollTop = feed.scrollHeight;
@@ -556,7 +558,7 @@
     const o = c.ollama, e = c.embedder, l = c.llm, ca = c.cache, w = c.worker, p = c.process;
     const m = S.metrics;
     const rows = [
-      { id: 'ollama', name: 'Ollama', s: o.status, detail: o.status === 'down' || o.status === 'off' ? `<span class="err">${esc(o.error || 'not running')}</span>${o.required ? '' : ' · not required'}` : `v${esc(o.version)} · ping ${fmtMs(o.ping_ms)} · ${o.installed?.length ?? 0} installed · ${o.loaded?.length ?? 0} loaded`, spark: (hist.ollama || []).map((x) => x.ms) },
+      { id: 'ollama', name: 'Ollama', s: o.status, detail: o.status === 'down' || o.status === 'off' ? (o.required ? `<span class="err">${esc(o.error || 'not running')}</span>` : 'not running · not used by the current backends') : `v${esc(o.version)} · ping ${fmtMs(o.ping_ms)} · ${o.installed?.length ?? 0} installed · ${o.loaded?.length ?? 0} loaded`, spark: (hist.ollama || []).map((x) => x.ms) },
       { id: 'embedder', name: 'Embedder', s: e.status, detail: `${esc(e.name || e.spec)}${e.dim ? ` · ${e.dim}-d` : ''} · probe ${fmtMs(e.probe_ms)}${e.paused ? ' (paused during run)' : ''}${m?.ops.embed.p95 != null ? ` · p95 ${fmtMs(m.ops.embed.p95)}` : ''}${e.reason ? ` · ${esc(e.reason)}` : ''}${e.error ? `<br><span class="err">${esc(e.error)}</span>` : ''}`, spark: (hist.embedder || []).map((x) => x.ms) },
       { id: 'llm', name: 'LLM', s: l.status, detail: l.status === 'off' ? 'offline heuristics (no model)' : `${esc(l.name || l.spec)} · probe ${fmtMs(l.probe_ms)}${l.paused ? ' (paused during run)' : ''}${m?.ops.llm.p95 != null ? ` · p95 ${fmtMs(m.ops.llm.p95)}` : ''}${m?.ops.llm.tokens_per_s ? ` · ${m.ops.llm.tokens_per_s} tok/s` : ''}${l.reason ? ` · ${esc(l.reason)}` : ''}${l.error ? `<br><span class="err">${esc(l.error)}</span>` : ''}`, spark: (hist.llm || []).map((x) => x.ms) },
       { id: 'cache', name: 'Embedding cache', s: ca.status, detail: `${num(ca.entries)} vectors · ${fmtBytes(ca.bytes)}${m?.cache.hit_rate != null ? ` · hit rate ${fmtPct(m.cache.hit_rate, 0)}` : ''}` },
