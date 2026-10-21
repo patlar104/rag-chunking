@@ -204,7 +204,9 @@
     else if (usesLLM) hint = `Agentic and propositional call ${llm} once per sentence or passage, so they can take a while on CPU.`;
     if ($('#in-stability').checked && usesLLM && llm !== 'none') hint += ' Stability check reruns each strategy twice.';
     const c = S.config;
-    if (c?.limits && !c.available?.ollama_running && S.settings.embed === 'hashing') {
+    if (c?.limits && S.settings.embed.startsWith('deepinfra')) {
+      hint = `Public demo on hosted models (DeepInfra): ${S.settings.embed.split(':')[1]} for embeddings and ${S.settings.llm.split(':')[1] || 'no LLM'} for agentic/propositional. Documents up to ${c.limits.max_chars.toLocaleString()} characters.`;
+    } else if (c?.limits && !c.available?.ollama_running && S.settings.embed === 'hashing') {
       hint = `Public demo: runs on the offline hashing embedder and rule-based heuristics (no local models on this server). Documents up to ${c.limits.max_chars.toLocaleString()} characters. Run it locally with Ollama for real models.`;
     }
     if (c?.limits?.public) hint += ' Runs are visible to everyone viewing this page, so don\'t paste private text.';
@@ -558,7 +560,7 @@
       { id: 'embedder', name: 'Embedder', s: e.status, detail: `${esc(e.name || e.spec)}${e.dim ? ` · ${e.dim}-d` : ''} · probe ${fmtMs(e.probe_ms)}${e.paused ? ' (paused during run)' : ''}${m?.ops.embed.p95 != null ? ` · p95 ${fmtMs(m.ops.embed.p95)}` : ''}${e.reason ? ` · ${esc(e.reason)}` : ''}${e.error ? `<br><span class="err">${esc(e.error)}</span>` : ''}`, spark: (hist.embedder || []).map((x) => x.ms) },
       { id: 'llm', name: 'LLM', s: l.status, detail: l.status === 'off' ? 'offline heuristics (no model)' : `${esc(l.name || l.spec)} · probe ${fmtMs(l.probe_ms)}${l.paused ? ' (paused during run)' : ''}${m?.ops.llm.p95 != null ? ` · p95 ${fmtMs(m.ops.llm.p95)}` : ''}${m?.ops.llm.tokens_per_s ? ` · ${m.ops.llm.tokens_per_s} tok/s` : ''}${l.reason ? ` · ${esc(l.reason)}` : ''}${l.error ? `<br><span class="err">${esc(l.error)}</span>` : ''}`, spark: (hist.llm || []).map((x) => x.ms) },
       { id: 'cache', name: 'Embedding cache', s: ca.status, detail: `${num(ca.entries)} vectors · ${fmtBytes(ca.bytes)}${m?.cache.hit_rate != null ? ` · hit rate ${fmtPct(m.cache.hit_rate, 0)}` : ''}` },
-      { id: 'worker', name: 'Worker', s: w.status, detail: `${w.state}${w.current ? ` ${esc(w.current.id)}${w.current.progress ? ` (${esc(w.current.progress.strategy)} ${w.current.progress.index + 1}/${w.current.progress.total})` : ''}` : ''} · queue ${w.queued} · ${w.completed} done · ${w.failed} failed` },
+      { id: 'worker', name: 'Worker', s: w.status, detail: `${w.state}${w.current ? ` ${esc(w.current.id)}${w.current.progress ? ` (${esc(w.current.progress.strategy)} ${w.current.progress.index + 1}/${w.current.progress.total})` : ''}` : ''} · queue ${w.queued} · ${w.completed} done · ${w.failed} failed${w.llm_budget ? ` · model calls ${num(w.llm_budget.used)}/${num(w.llm_budget.limit)} this hour` : ''}` },
       { id: 'process', name: 'Process', s: p.status, detail: `RSS ${p.rss_mb ?? '–'} MB · CPU ${p.cpu_pct}% · load ${p.load?.[0] ?? '–'}/${p.cpus} · ${p.threads} threads · up ${fmtDur(p.uptime_s)}` },
     ];
     const host = $('#components');
@@ -571,7 +573,7 @@
 
     const tl = $('#timeline'); const hs = (hist.overall || []).slice(-150);
     tl.innerHTML = Array.from({ length: 150 - hs.length }, () => '<i></i>').join('') + hs.map((x) => `<i class="${x.s}" title="${clock(x.t)} ${x.s}"></i>`).join('');
-    renderKpis(); renderModels(o);
+    renderKpis(); renderModels(o, c.hosted || []);
   }
 
   function renderKpis() {
@@ -603,12 +605,23 @@
     if (S.run && S.run.results[S.tab]?.status === 'running') renderStats();
   }
 
-  function renderModels(o) {
+  function hostedHTML(hosted) {
+    return hosted.map((x) => `<li class="model" data-testid="model-hosted-${esc(x.kind)}">
+        <b>${esc(x.model)}</b><span class="exp s-${esc(x.status || 'off')}">${esc(STATUS_LABEL[x.status] || x.status || '')}</span>
+        <span class="meta">${[`${x.provider} · ${x.kind}`, x.dim ? `${x.dim}-d` : '', x.probe_ms != null ? `probe ${fmtMs(x.probe_ms)}` : '',
+          x.p95 != null ? `p95 ${fmtMs(x.p95)}` : '', x.tokens_per_s ? `${x.tokens_per_s} tok/s` : '', `${x.calls_5m} calls (5m)`].filter(Boolean).join(' · ')}</span></li>`).join('');
+  }
+  function renderModels(o, hosted = []) {
     const host = $('#models');
-    if (!o || o.status === 'down' || o.status === 'off') { host.innerHTML = `<li class="empty">Ollama is not reachable at ${esc(o?.host || 'localhost:11434')}.</li>`; $('#models-sub').textContent = 'Ollama'; return; }
-    $('#models-sub').textContent = `${o.loaded.length} loaded · ${o.installed.length} installed`;
-    if (!o.loaded.length) { host.innerHTML = '<li class="empty">No models in memory. They load on first use.</li>'; return; }
-    host.innerHTML = o.loaded.map((x) => {
+    const ollamaUp = o && o.status !== 'down' && o.status !== 'off';
+    if (!ollamaUp) {
+      $('#models-sub').textContent = hosted.length ? `${hosted.length} hosted` : 'Ollama';
+      host.innerHTML = hosted.length ? hostedHTML(hosted) : `<li class="empty">Ollama is not reachable at ${esc(o?.host || 'localhost:11434')}.</li>`;
+      return;
+    }
+    $('#models-sub').textContent = `${hosted.length ? `${hosted.length} hosted · ` : ''}${o.loaded.length} loaded · ${o.installed.length} installed`;
+    if (!o.loaded.length) { host.innerHTML = hostedHTML(hosted) + (hosted.length ? '' : '<li class="empty">No models in memory. They load on first use.</li>'); return; }
+    host.innerHTML = hostedHTML(hosted) + o.loaded.map((x) => {
       const gpu = x.size ? x.size_vram / x.size : 0;
       return `<li class="model" data-testid="model-${esc(x.name)}" data-expires="${esc(x.expires_at || '')}">
         <b>${esc(x.name)}</b><span class="exp" title="Unloads when idle">–</span>

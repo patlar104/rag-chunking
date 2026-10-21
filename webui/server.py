@@ -90,7 +90,13 @@ runner = Runner(hub.publish)
 monitor = HealthMonitor(metrics, runner.state, host=os.environ.get("OLLAMA_HOST"))
 settings = {"embed": "hashing", "llm": "none"}
 # --public: safe defaults for an internet-facing deployment
-PUBLIC = {"enabled": os.environ.get("CHUNK_MONITOR_PUBLIC") == "1", "max_chars": 30_000, "max_queue": 3}
+PUBLIC = {"enabled": os.environ.get("CHUNK_MONITOR_PUBLIC") == "1", "max_chars": 30_000, "max_queue": 3,
+          # hosted-model spend guard: LLM calls allowed per rolling hour (public mode only)
+          "llm_calls_per_hour": int(os.environ.get("CHUNK_MONITOR_LLM_BUDGET", "1500"))}
+
+
+if PUBLIC["enabled"]:
+    runner.llm_budget = PUBLIC["llm_calls_per_hour"]
 
 
 def _remember(ev):
@@ -190,6 +196,10 @@ def _available():
         embeds.append({"spec": "st:all-MiniLM-L6-v2", "label": "sentence-transformers · all-MiniLM-L6-v2"})
     except ImportError:
         pass
+    from chunking import deepinfra
+    if deepinfra.configured():
+        embeds.append({"spec": f"deepinfra:{deepinfra.DEFAULT_EMBED}", "label": f"DeepInfra · {deepinfra.DEFAULT_EMBED}"})
+        llms.append({"spec": f"deepinfra:{deepinfra.DEFAULT_LLM}", "label": f"DeepInfra · {deepinfra.DEFAULT_LLM}"})
     if os.environ.get("OPENAI_API_KEY"):
         embeds.append({"spec": "openai:text-embedding-3-small", "label": "OpenAI · text-embedding-3-small"})
         llms.append({"spec": "openai:gpt-4o-mini", "label": "OpenAI · gpt-4o-mini"})
@@ -200,7 +210,8 @@ def _available():
 def config():
     return {"strategies": list(STRATEGIES), "samples": {k: {"label": v[0], "text": v[1]} for k, v in SAMPLES.items()},
             "available": _available(), "settings": settings,
-            "limits": {"max_chars": PUBLIC["max_chars"], "public": True} if PUBLIC["enabled"] else None}
+            "limits": {"max_chars": PUBLIC["max_chars"], "public": True,
+                       "llm_calls_per_hour": PUBLIC["llm_calls_per_hour"]} if PUBLIC["enabled"] else None}
 
 
 @app.post("/api/settings")
@@ -329,6 +340,8 @@ def main():
     args = ap.parse_args()
     settings.update(embed=args.embed, llm=args.llm)
     PUBLIC["enabled"] = PUBLIC["enabled"] or args.public
+    if PUBLIC["enabled"]:
+        runner.llm_budget = PUBLIC["llm_calls_per_hour"]
     import uvicorn
     print(f"Chunk Monitor on http://{'localhost' if args.host in ('127.0.0.1', '0.0.0.0') else args.host}:{args.port}")
     uvicorn.run(app, host=args.host, port=args.port, log_level="warning")

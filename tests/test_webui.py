@@ -107,7 +107,7 @@ class Api(unittest.TestCase):
     def test_health_snapshot(self):
         self.assertTrue(wait_for(lambda: self.server.monitor.snapshot.get("overall") is not None))
         h = self.client.get("/api/health").json()
-        self.assertEqual(set(h["components"]), {"ollama", "embedder", "llm", "cache", "worker", "process"})
+        self.assertEqual(set(h["components"]), {"ollama", "embedder", "llm", "cache", "worker", "process", "hosted"})
         self.assertEqual(h["components"]["embedder"]["status"], "ok")   # hashing embedder always works
         self.assertEqual(h["components"]["llm"]["status"], "off")
 

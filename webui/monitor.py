@@ -253,6 +253,20 @@ class HealthMonitor:
         self._probe_results["llm"] = res
         return res
 
+    def _hosted(self, emb, llm, m) -> List[Dict[str, Any]]:
+        """Hosted (API) models in use, for the Model state panel."""
+        out = []
+        for kind, spec, comp, op in (("embedding", self.embed_spec, emb, "embed"), ("chat", self.llm_spec, llm, "llm")):
+            provider, _, model = spec.partition(":")
+            if provider not in ("deepinfra", "openai"):
+                continue
+            o = m["ops"][op]
+            out.append({"kind": kind, "provider": {"deepinfra": "DeepInfra", "openai": "OpenAI"}[provider],
+                        "model": model or comp.get("name", spec), "status": comp.get("status"),
+                        "dim": comp.get("dim"), "probe_ms": comp.get("probe_ms"), "p95": o["p95"],
+                        "calls_5m": o["calls_5m"], "tokens_per_s": o.get("tokens_per_s")})
+        return out
+
     def _cache(self) -> Dict[str, Any]:
         d = Path(os.environ.get("CHUNKING_CACHE_DIR", Path.home() / ".cache" / "rag-chunking"))
         path = d / "embeddings.sqlite"
@@ -336,7 +350,8 @@ class HealthMonitor:
         proc = self._process(now)
         if not worker.get("alive", True):
             worker["status"] = "down"
-        components = {"ollama": oll, "embedder": emb, "llm": llm, "cache": cache, "worker": worker, "process": proc}
+        components = {"ollama": oll, "embedder": emb, "llm": llm, "cache": cache, "worker": worker, "process": proc,
+                      "hosted": self._hosted(emb, llm, m)}
         required = ["embedder", "worker"] + (["ollama"] if oll.get("required") else []) + \
                    (["llm"] if llm.get("status") != "off" else [])
         overall = max((components[k].get("status", "ok") for k in required), key=lambda s: RANK.get(s, 0))

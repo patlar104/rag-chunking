@@ -80,7 +80,7 @@ Each chunker has a `.split(text) -> list[Chunk]` method. A `Chunk` has `text`, `
 
 **Agentic**: `AgenticChunker(llm=..., max_tokens=300)`. It builds the chunk sentence by sentence. For each new sentence the model **inspects** the current chunk, **contextualizes** it (keeps a running title) and decides on a **boundary**. It handles messy data best, and it's also the slowest and most expensive. Without an LLM, an offline heuristic decides instead, using headings, continuation cues ("It…", "This…") and shared word stems.
 
-## Real models: Ollama, sentence-transformers, OpenAI
+## Real models: Ollama, sentence-transformers, DeepInfra, OpenAI
 
 The defaults run fully offline with a toy hashing embedder and rule-based fallbacks. Real models make semantic, propositional and agentic chunking much better, and they plug in with a short spec string.
 
@@ -90,6 +90,7 @@ The defaults run fully offline with a toy hashing embedder and rule-based fallba
 | `ollama:mxbai-embed-large` / `ollama:all-minilm` | Ollama: stronger / fastest | `ollama pull …` |
 | `st:all-MiniLM-L6-v2` | sentence-transformers (local) | `pip install sentence-transformers` |
 | `st:BAAI/bge-small-en-v1.5` | any Hugging Face embedding model | same |
+| `deepinfra` (= `deepinfra:BAAI/bge-base-en-v1.5`) | DeepInfra hosted API, 768-d, ~$0.005 / 1M tokens | set `DEEPINFRA_API_KEY` (no extra packages) |
 | `openai:text-embedding-3-small` | OpenAI API | `pip install openai`, set `OPENAI_API_KEY` |
 | `auto` | best available: Ollama, then sentence-transformers, then OpenAI, then hashing | |
 
@@ -97,6 +98,7 @@ The defaults run fully offline with a toy hashing embedder and rule-based fallba
 |---|---|
 | `ollama:llama3.2:3b` | Ollama chat model, good default (2 GB) |
 | `ollama:qwen2.5:1.5b` | Ollama, fast on a laptop CPU (1 GB) |
+| `deepinfra` (= `deepinfra:Qwen/Qwen2.5-7B-Instruct`) | DeepInfra hosted API, ~$0.04 in / $0.10 out per 1M tokens |
 | `openai:gpt-4o-mini` | OpenAI API |
 | `auto` | first installed Ollama chat model, else OpenAI, else offline heuristics |
 
@@ -118,6 +120,17 @@ Ollama support uses only the standard library (no `ollama` pip package). It incl
 - **Clear errors** when the server isn't running (`ollama serve`), a model isn't pulled (`ollama pull <model>`), or you pick the wrong kind of model.
 - **Host selection** through `OLLAMA_HOST` or `--ollama-host http://gpu-box:11434`.
 - Headings skip the model call in agentic mode, and propositional mode never sends tables or code, which saves calls.
+
+### Hosted models (DeepInfra)
+
+No GPU or local download needed, which makes it the right choice for deploying the web UI. DeepInfra doesn't serve `nomic-embed-text` or `qwen2.5:1.5b`, so the defaults are the closest hosted equivalents: `BAAI/bge-base-en-v1.5` (same 768 dimensions; its query prefix is applied automatically) and `Qwen/Qwen2.5-7B-Instruct` (same family, and better at agentic boundaries than the 1.5B model). Any other DeepInfra model works too, e.g. `deepinfra:Qwen/Qwen2.5-72B-Instruct`.
+
+```bash
+export DEEPINFRA_API_KEY=...        # https://deepinfra.com/dash/api_keys
+python demo.py --embed deepinfra --llm deepinfra
+```
+
+The client uses only the standard library, retries 429/5xx responses, and uses JSON mode for the propositional and agentic chunkers. `DEEPINFRA_BASE_URL` and `DEEPINFRA_AUTH_HEADER` let you route requests through an auth proxy.
 
 ### Embedding cache
 
@@ -213,7 +226,19 @@ pip install fastapi uvicorn
 python -m webui.server                                   # http://localhost:8000
 python -m webui.server --embed ollama:nomic-embed-text --llm ollama:llama3.2:3b
 python -m webui.server --host 0.0.0.0 --port 8080        # expose on your network
+python -m webui.server --embed deepinfra --llm deepinfra  # hosted models (DEEPINFRA_API_KEY)
 ```
+
+**Public deployments:** add `--public` (or set `CHUNK_MONITOR_PUBLIC=1`). This turns on:
+- documents capped at 30k characters, and at most 3 queued runs
+- backends fixed at startup (`POST /api/settings` returns 403)
+- duplicate strategies removed from each run
+- only the browser that started a run can cancel it (cancel token)
+- a 10 s probe cooldown, and at most 50 live viewers
+- CORS limited to Perplexity-hosted origins
+- a spend guard: at most `CHUNK_MONITOR_LLM_BUDGET` LLM calls per rolling hour (default 1500, which is a few cents on Qwen2.5-7B)
+
+Everyone viewing the page sees all runs, so the page tells visitors not to paste private text.
 
 ![Chunk Monitor](docs/monitor.png)
 
@@ -237,7 +262,7 @@ Each component is ok, degraded or down, and these roll up into one overall statu
 
 **Boundary stability check** (optional per run): each strategy is re-run with the size changed by ±15%, and the score is how many cut points survive (F1, 25-character tolerance). In testing, fixed-size scored 0% (every boundary moves), recursive and document scored 90%, and semantic scored 100%.
 
-**Model state:** the models loaded in Ollama, with parameters, quantization, memory, CPU/GPU split, and a countdown to unload.
+**Model state:** hosted models (provider, dimension, probe latency, p95, tokens/s), plus the models loaded in Ollama, with parameters, quantization, memory, CPU/GPU split, and a countdown to unload.
 
 **Live view:** the document fills in with colored chunks and red cut markers (✂ marks a mid-sentence cut). Each strategy has its own view:
 - **Agentic:** highlights the sentence being inspected, steps through inspect → contextualize → boundary, and logs every decision with its latency.
@@ -284,9 +309,10 @@ chunking/
   semantic.py       04 semantic (embedding distance spikes)
   propositional.py  05 propositional (atomic facts)
   agentic.py        06 agentic (inspect -> contextualize -> boundary)
-  embeddings.py     hashing (offline), Ollama, sentence-transformers, OpenAI, SQLite cache, get_embedder()
+  embeddings.py     hashing (offline), Ollama, sentence-transformers, DeepInfra, OpenAI, SQLite cache, get_embedder()
   llm.py            Ollama + OpenAI chat models, structured JSON, get_llm()
   ollama.py         stdlib Ollama client (errors, host resolution, pull)
+  deepinfra.py      stdlib DeepInfra client (OpenAI-compatible): embeddings + chat, retries, JSON mode
   stats.py          Problem #1 / #2 diagnostics
   events.py         telemetry event bus (subscribe / emit / timed)
   integrations/     langchain.py (TextSplitter, Embeddings), llama_index.py (NodeParser, BaseEmbedding)
@@ -297,7 +323,7 @@ webui/
   static/           index.html, app.js, style.css (no build step)
 demo.py             CLI to run and compare everything
 sample.md           demo document (Markdown, a table, code, and a topic shift)
-tests/              57 unittest tests: chunkers, backends (fake Ollama server), integrations, web UI
+tests/              63 unittest tests: chunkers, backends (fake Ollama/DeepInfra servers), integrations, web UI
                     CHUNKING_LIVE_OLLAMA=1 python -m unittest tests.test_backends  # live check
 ```
 

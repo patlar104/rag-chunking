@@ -20,16 +20,23 @@ class Cancelled(Exception):
     pass
 
 
-class _Guard:
-    """Wraps an embedder/LLM so a cancelled run stops at the next model call."""
+class BudgetExceeded(RuntimeError):
+    pass
 
-    def __init__(self, inner, run: Dict):
-        self._inner, self._run = inner, run
+
+class _Guard:
+    """Wraps an embedder/LLM so a cancelled run stops at the next model call,
+    and (for LLMs) so the hourly spend budget is enforced."""
+
+    def __init__(self, inner, run: Dict, budget=None):
+        self._inner, self._run, self._budget = inner, run, budget
         self.name = getattr(inner, "name", type(inner).__name__)
 
     def _check(self):
         if self._run["cancel"].is_set():
             raise Cancelled()
+        if self._budget is not None and not self._budget():
+            raise BudgetExceeded("hourly model-call budget for this public demo is used up; try again later")
 
     def __call__(self, *a, **k):
         self._check()
@@ -74,6 +81,8 @@ class Runner:
         self.current: Optional[str] = None
         self.completed = self.failed = 0
         self.in_trial = False  # stability re-runs: keep their events out of the live view
+        self.llm_budget: Optional[int] = None  # max LLM calls per rolling hour (None = unlimited)
+        self._llm_calls: List[float] = []
         self.lock = threading.Lock()
         self.thread = threading.Thread(target=self._loop, name="chunk-runner", daemon=True)
         self.thread.start()
@@ -116,7 +125,7 @@ class Runner:
         cur = self.runs.get(self.current) if self.current else None
         queued = sum(1 for r in self.runs.values() if r["status"] == "queued")
         status = "ok" if queued <= 3 else "degraded"
-        return {"status": status, "alive": self.thread.is_alive(),
+        return {"status": status, "alive": self.thread.is_alive(), "llm_budget": self.budget_state(),
                 "state": "running" if cur else "idle", "current": self.summary(cur) if cur else None,
                 "queued": queued, "completed": self.completed, "failed": self.failed}
 
@@ -164,7 +173,25 @@ class Runner:
         embed = get_embedder(run["embed"], cache=True)
         if any(s in LLM_STRATEGIES for s in run["strategies"]):
             llm = get_llm(run["llm"])
-        return _Guard(embed, run), (_Guard(llm, run) if llm is not None else None)
+        return _Guard(embed, run), (_Guard(llm, run, self._take_llm_call) if llm is not None else None)
+
+    def _take_llm_call(self) -> bool:
+        if self.llm_budget is None:
+            return True
+        now = time.time()
+        with self.lock:
+            self._llm_calls = [t for t in self._llm_calls if now - t < 3600]
+            if len(self._llm_calls) >= self.llm_budget:
+                return False
+            self._llm_calls.append(now)
+            return True
+
+    def budget_state(self) -> Optional[Dict[str, int]]:
+        if self.llm_budget is None:
+            return None
+        now = time.time()
+        used = sum(1 for t in self._llm_calls if now - t < 3600)
+        return {"used": used, "limit": self.llm_budget}
 
     def _build(self, name, size, overlap, embed, llm):
         if name == "fixed":

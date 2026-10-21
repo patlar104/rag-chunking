@@ -272,7 +272,7 @@ class CachedEmbedder:
 
 def get_embedder(spec: str = "hashing", cache: bool = False, **kwargs):
     """Build an embedder from a short spec: 'hashing', 'ollama[:model]',
-    'st[:model]', 'openai[:model]', or 'auto'."""
+    'st[:model]', 'openai[:model]', 'deepinfra[:model]', or 'auto'."""
     kind, _, model = spec.partition(":")
     kind = kind.lower()
     if kind == "auto":
@@ -285,8 +285,12 @@ def get_embedder(spec: str = "hashing", cache: bool = False, **kwargs):
         emb = SentenceTransformerEmbedder(model or "all-MiniLM-L6-v2", **kwargs)
     elif kind == "openai":
         emb = OpenAIEmbedder(model or "text-embedding-3-small", **kwargs)
+    elif kind == "deepinfra":
+        from .deepinfra import DEFAULT_EMBED, DeepInfraEmbedder
+        emb = DeepInfraEmbedder(model or DEFAULT_EMBED, **kwargs)
     else:
-        raise ValueError(f"unknown embedder {spec!r}; use hashing, ollama[:model], st[:model], openai[:model] or auto")
+        raise ValueError(f"unknown embedder {spec!r}; use hashing, ollama[:model], st[:model], openai[:model], "
+                         "deepinfra[:model] or auto")
     return CachedEmbedder(emb) if cache and kind != "hashing" else emb
 
 

@@ -121,7 +121,7 @@ def _ollama_usage(r: dict) -> dict:
 
 
 def get_llm(spec: Optional[str], **kwargs):
-    """'ollama[:model]', 'openai[:model]', 'auto', or None/'none'."""
+    """'ollama[:model]', 'openai[:model]', 'deepinfra[:model]', 'auto', or None/'none'."""
     if not spec or spec == "none":
         return None
     kind, _, model = spec.partition(":")
@@ -129,6 +129,9 @@ def get_llm(spec: Optional[str], **kwargs):
         return OllamaLLM(model or "llama3.2:3b", **kwargs)
     if kind == "openai":
         return OpenAILLM(model or "gpt-4o-mini", **kwargs)
+    if kind == "deepinfra":
+        from .deepinfra import DEFAULT_LLM, DeepInfraLLM
+        return DeepInfraLLM(model or DEFAULT_LLM, **kwargs)
     if kind == "auto":
         client = ollama.Client(kwargs.get("host"), timeout=3)
         if client.is_running():
@@ -137,8 +140,11 @@ def get_llm(spec: Optional[str], **kwargs):
                 return OllamaLLM(chat[0], **kwargs)
         if os.environ.get("OPENAI_API_KEY"):
             return OpenAILLM(**kwargs)
+        if os.environ.get("DEEPINFRA_API_KEY"):
+            from .deepinfra import DeepInfraLLM
+            return DeepInfraLLM(**kwargs)
         return None
-    raise ValueError(f"unknown LLM {spec!r}; use ollama[:model], openai[:model], auto or none")
+    raise ValueError(f"unknown LLM {spec!r}; use ollama[:model], openai[:model], deepinfra[:model], auto or none")
 
 
 def _looks_like_embedder(name: str) -> bool:
