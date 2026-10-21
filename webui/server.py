@@ -89,6 +89,8 @@ metrics = Metrics()
 runner = Runner(hub.publish)
 monitor = HealthMonitor(metrics, runner.state, host=os.environ.get("OLLAMA_HOST"))
 settings = {"embed": "hashing", "llm": "none"}
+# --public: safe defaults for an internet-facing deployment
+PUBLIC = {"enabled": os.environ.get("CHUNK_MONITOR_PUBLIC") == "1", "max_chars": 30_000, "max_queue": 3}
 
 
 def _remember(ev):
@@ -152,7 +154,11 @@ async def lifespan(app):
 
 
 app = FastAPI(title="Chunk Monitor", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+if PUBLIC["enabled"]:  # the dashboard is same-origin; only allow Perplexity-hosted origins cross-origin
+    app.add_middleware(CORSMiddleware, allow_origin_regex=r"https://([a-z0-9-]+\.)*(pplx\.app|perplexity\.ai)",
+                       allow_methods=["GET", "POST"], allow_headers=["content-type"])
+else:
+    app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 
 class SettingsIn(BaseModel):
@@ -193,11 +199,18 @@ def _available():
 @app.get("/api/config")
 def config():
     return {"strategies": list(STRATEGIES), "samples": {k: {"label": v[0], "text": v[1]} for k, v in SAMPLES.items()},
-            "available": _available(), "settings": settings}
+            "available": _available(), "settings": settings,
+            "limits": {"max_chars": PUBLIC["max_chars"], "public": True} if PUBLIC["enabled"] else None}
 
 
 @app.post("/api/settings")
 def update_settings(body: SettingsIn):
+    if PUBLIC["enabled"]:
+        raise HTTPException(403, "backends are fixed on this public demo")
+    if PUBLIC["enabled"]:
+        av = _available()
+        if body.embed not in {o["spec"] for o in av["embed"]} or body.llm not in {o["spec"] for o in av["llm"]}:
+            raise HTTPException(400, "backend not available on this server")
     try:  # validate before switching so a typo can't take the dashboard down
         get_embedder(body.embed)
         if body.llm not in ("none", "auto"):
@@ -222,15 +235,28 @@ def get_metrics():
 
 @app.post("/api/probe")
 def probe():
+    if PUBLIC["enabled"]:
+        if time.time() - PUBLIC.get("last_probe", 0) < 10:
+            raise HTTPException(429, "probed recently, try again in a few seconds")
+        PUBLIC["last_probe"] = time.time()
     monitor.probe_now()
     return {"ok": True}
 
 
 @app.post("/api/runs", status_code=201)
 def create_run(body: RunIn):
+    if PUBLIC["enabled"]:
+        if len(body.text) > PUBLIC["max_chars"]:
+            raise HTTPException(413, f"document too long for this public demo (max {PUBLIC['max_chars']:,} characters)")
+        if runner.state()["queued"] >= PUBLIC["max_queue"]:
+            raise HTTPException(429, "the queue is full, try again in a moment")
     try:
-        return runner.submit(body.text, body.strategies, body.size, body.overlap,
-                             settings["embed"], settings["llm"], body.stability)
+        strategies = list(dict.fromkeys(body.strategies))  # no duplicates: each strategy runs once
+        if len(strategies) > len(STRATEGIES):
+            raise ValueError("too many strategies")
+        out = runner.submit(body.text, strategies, body.size, body.overlap,
+                            settings["embed"], settings["llm"], body.stability)
+        return out | {"cancel_token": runner.runs[out["id"]]["cancel_token"]}
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -248,8 +274,15 @@ def get_run(run_id: str):
     return d
 
 
+class CancelIn(BaseModel):
+    token: str = ""
+
+
 @app.post("/api/runs/{run_id}/cancel")
-def cancel_run(run_id: str):
+def cancel_run(run_id: str, body: Optional[CancelIn] = None):
+    run = runner.runs.get(run_id)
+    if PUBLIC["enabled"] and run and (body is None or body.token != run["cancel_token"]):
+        raise HTTPException(403, "only the browser that started this run can cancel it")
     if not runner.cancel(run_id):
         raise HTTPException(409, "run is not active")
     return {"ok": True}
@@ -257,6 +290,8 @@ def cancel_run(run_id: str):
 
 @app.get("/api/stream")
 async def stream(request: Request):
+    if PUBLIC["enabled"] and len(hub.clients) >= 50:
+        raise HTTPException(429, "too many live viewers right now")
     q: asyncio.Queue = asyncio.Queue()
     hub.clients.add(q)
 
@@ -289,8 +324,11 @@ def main():
     ap.add_argument("--port", type=int, default=8000)
     ap.add_argument("--embed", default="hashing", help="initial embedder spec (changeable in the UI)")
     ap.add_argument("--llm", default="none", help="initial LLM spec (changeable in the UI)")
+    ap.add_argument("--public", action="store_true",
+                    help="internet-facing mode: size/queue limits, settings restricted to detected backends")
     args = ap.parse_args()
     settings.update(embed=args.embed, llm=args.llm)
+    PUBLIC["enabled"] = PUBLIC["enabled"] or args.public
     import uvicorn
     print(f"Chunk Monitor on http://{'localhost' if args.host in ('127.0.0.1', '0.0.0.0') else args.host}:{args.port}")
     uvicorn.run(app, host=args.host, port=args.port, log_level="warning")

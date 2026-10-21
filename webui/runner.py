@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import itertools
+import secrets
 import queue
 import threading
 import time
@@ -89,7 +90,7 @@ class Runner:
         run = {"id": run_id, "status": "queued", "created": time.time(), "text": text,
                "strategies": strategies, "size": size, "overlap": overlap, "embed": embed, "llm": llm,
                "stability": stability, "results": {}, "error": None, "cancel": threading.Event(),
-               "started": None, "finished": None}
+               "started": None, "finished": None, "cancel_token": secrets.token_urlsafe(16)}
         with self.lock:
             self.runs[run_id] = run
             self.order.append(run_id)

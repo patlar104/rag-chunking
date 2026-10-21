@@ -148,6 +148,7 @@
     }
     S.settings = S.config.settings;
     buildSources(); buildChips(); buildSelects();
+    if (S.config.limits?.public) { ['#sel-embed', '#sel-llm'].forEach((id) => { $(id).disabled = true; $(id).title = 'Backends are fixed on this public demo'; }); $('#btn-apply').hidden = true; }
     loadSample(S.source);
     connect();
   }
@@ -202,6 +203,11 @@
     if (usesLLM && llm === 'none') hint = 'Agentic and propositional run on offline heuristics. Pick an LLM above to use a real model.';
     else if (usesLLM) hint = `Agentic and propositional call ${llm} once per sentence or passage, so they can take a while on CPU.`;
     if ($('#in-stability').checked && usesLLM && llm !== 'none') hint += ' Stability check reruns each strategy twice.';
+    const c = S.config;
+    if (c?.limits && !c.available?.ollama_running && S.settings.embed === 'hashing') {
+      hint = `Public demo: runs on the offline hashing embedder and rule-based heuristics (no local models on this server). Documents up to ${c.limits.max_chars.toLocaleString()} characters. Run it locally with Ollama for real models.`;
+    }
+    if (c?.limits?.public) hint += ' Runs are visible to everyone viewing this page, so don\'t paste private text.';
     $('#run-hint').textContent = hint;
   }
 
@@ -333,13 +339,14 @@
       // the SSE 'run.started' event can beat this response; never reset a run already in progress
       if (!S.run || S.run.id !== summary.id) newRunState(summary, text, true);
       else S.run.own = true;
+      S.run.token = summary.cancel_token;
       markRun(summary);
       renderMeta(); // markRun skips stale statuses, but ownership changed
     } catch (e) { toast(e.message, true); $('#btn-run').disabled = false; }
   }
   async function cancelRun() {
     if (!S.run) return;
-    try { await api(`/api/runs/${S.run.id}/cancel`, { method: 'POST' }); toast('Cancelling after the current model call…'); } catch (e) { toast(e.message, true); }
+    try { await api(`/api/runs/${S.run.id}/cancel`, { method: 'POST', body: JSON.stringify({ token: S.run.token || '' }) }); toast('Cancelling after the current model call…'); } catch (e) { toast(e.message, true); }
   }
 
   function renderMeta() {
