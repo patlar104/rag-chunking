@@ -25,12 +25,12 @@ from __future__ import annotations
 import contextvars
 import threading
 import time
+from collections.abc import Callable
 from contextlib import contextmanager
-from typing import Callable, Dict, List
 
-Subscriber = Callable[[Dict], None]
+Subscriber = Callable[[dict], None]
 
-_subscribers: List[Subscriber] = []
+_subscribers: list[Subscriber] = []
 _lock = threading.Lock()
 
 #: Set this (e.g. in a worker thread) to tag every event with a run id.
@@ -68,7 +68,7 @@ def emit(kind: str, **data) -> None:
 def timed(kind: str, **data):
     """Emit `kind` with duration (ms) and ok/error once the block finishes.
     The block can add fields by mutating the yielded dict."""
-    extra: Dict = {}
+    extra: dict = {}
     t0 = time.perf_counter()
     try:
         yield extra

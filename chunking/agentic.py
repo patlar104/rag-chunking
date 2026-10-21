@@ -10,7 +10,6 @@ from __future__ import annotations
 import re
 import time
 from collections import Counter
-from typing import List, Optional
 
 from . import events
 from .base import Chunk, attach_headings, count_tokens, sentence_spans
@@ -54,20 +53,20 @@ class AgenticChunker:
         min_sentences: the heuristic won't close a chunk smaller than this.
     """
 
-    def __init__(self, llm: Optional[LLM] = None, max_tokens: int = 300,
+    def __init__(self, llm: LLM | None = None, max_tokens: int = 300,
                  min_sentences: int = 2, context_chars: int = 800, **_ignored):
         self.llm = llm
         self.max_tokens = max_tokens
         self.min_sentences = min_sentences
         self.context_chars = context_chars
 
-    def split(self, text: str) -> List[Chunk]:
+    def split(self, text: str) -> list[Chunk]:
         spans = attach_headings(text, sentence_spans(text))
         if not spans:
             return []
         sentences = [text[a:b] for a, b in spans]
 
-        chunks: List[Chunk] = []
+        chunks: list[Chunk] = []
         mode = "llm" if self.llm else "heuristic"
         events.emit("agentic.start", sentences=len(spans), spans=spans, mode=mode)
         start, title, reason = 0, self._title([sentences[0]]), "start"
@@ -129,7 +128,7 @@ class AgenticChunker:
         return False, ""
 
     @staticmethod
-    def _title(sentences: List[str]) -> str:
+    def _title(sentences: list[str]) -> str:
         first = sentences[0].strip()
         if first.startswith("#"):
             return first.splitlines()[0].lstrip("# ").strip()

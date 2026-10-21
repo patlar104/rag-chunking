@@ -6,12 +6,11 @@ Problem #2 - too large  = embedding noise -> look at `max_tokens` and `oversized
 from __future__ import annotations
 
 from statistics import mean, median
-from typing import List
 
 from .base import Chunk, sentence_spans
 
 
-def chunk_stats(text: str, chunks: List[Chunk], tiny: int = 15, oversized: int = 400) -> dict:
+def chunk_stats(text: str, chunks: list[Chunk], tiny: int = 15, oversized: int = 400) -> dict:
     if not chunks:
         return {"chunks": 0}
     sizes = [c.tokens for c in chunks]

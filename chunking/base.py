@@ -3,10 +3,10 @@ from __future__ import annotations
 
 import bisect
 import re
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from typing import Callable, Iterable, List, Tuple
 
-Span = Tuple[int, int]
+Span = tuple[int, int]
 
 # A deliberately simple "token": a word or a single punctuation mark.
 # Swap in tiktoken or a HF tokenizer via `length_fn` if you need exact model counts.
@@ -39,7 +39,7 @@ class Chunk:
         return f"Chunk({self.start}:{self.end}, {self.tokens} tok, {preview!r}...)"
 
 
-def token_spans(text: str) -> List[Span]:
+def token_spans(text: str) -> list[Span]:
     return [m.span() for m in _TOKEN_RE.finditer(text)]
 
 
@@ -47,10 +47,10 @@ def count_tokens(text: str) -> int:
     return len(_TOKEN_RE.findall(text))
 
 
-def sentence_spans(text: str, start: int = 0, end: int | None = None) -> List[Span]:
+def sentence_spans(text: str, start: int = 0, end: int | None = None) -> list[Span]:
     """Split text[start:end] into sentence spans (absolute offsets, whitespace trimmed)."""
     end = len(text) if end is None else end
-    spans: List[Span] = []
+    spans: list[Span] = []
     pos = start
     for m in _SENT_END_RE.finditer(text, start, end):
         cut = m.start() + len(m.group(0).rstrip())
@@ -60,10 +60,10 @@ def sentence_spans(text: str, start: int = 0, end: int | None = None) -> List[Sp
     return [s for s in (strip_span(text, a, b) for a, b in spans) if s[1] > s[0]]
 
 
-def attach_headings(text: str, spans: List[Span]) -> List[Span]:
+def attach_headings(text: str, spans: list[Span]) -> list[Span]:
     """Glue a lone Markdown heading onto the sentence after it, so a heading
     never ends up as the last line of the previous chunk."""
-    out: List[Span] = []
+    out: list[Span] = []
     pending = None
     for a, b in spans:
         is_heading = text[a:b].lstrip().startswith("#") and "\n" not in text[a:b].strip()
@@ -87,7 +87,7 @@ def strip_span(text: str, start: int, end: int) -> Span:
     return start, end
 
 
-def spans_to_chunks(text: str, spans: Iterable[Span], **metadata) -> List[Chunk]:
+def spans_to_chunks(text: str, spans: Iterable[Span], **metadata) -> list[Chunk]:
     chunks = []
     for a, b in spans:
         a, b = strip_span(text, a, b)
@@ -96,7 +96,7 @@ def spans_to_chunks(text: str, spans: Iterable[Span], **metadata) -> List[Chunk]
     return chunks
 
 
-def with_overlap(text: str, chunks: List[Chunk], overlap_tokens: int = 30) -> List[Chunk]:
+def with_overlap(text: str, chunks: list[Chunk], overlap_tokens: int = 30) -> list[Chunk]:
     """The reel's "practical fix": slide each chunk's start back by N tokens.
 
     Works with any chunker that returns real character offsets. Each chunk

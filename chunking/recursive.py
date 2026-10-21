@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import re
-from typing import List, Optional, Sequence
+from collections.abc import Sequence
 
 from .base import Chunk, LengthFn, Span, count_tokens, spans_to_chunks
 
@@ -21,21 +21,21 @@ class RecursiveChunker:
     def __init__(
         self,
         chunk_size: int = 200,
-        separators: Optional[Sequence[str]] = None,
+        separators: Sequence[str] | None = None,
         length_fn: LengthFn = count_tokens,
     ):
         self.chunk_size = chunk_size
         self.separators = list(separators or DEFAULT_SEPARATORS)
         self.length = length_fn
 
-    def split(self, text: str) -> List[Chunk]:
+    def split(self, text: str) -> list[Chunk]:
         chunks = []
         for (a, b), level in self._split(text, 0, len(text), self.separators, "document"):
             chunks.extend(spans_to_chunks(text, [(a, b)], strategy="recursive", split_level=level))
         return chunks
 
     # -- internals -------------------------------------------------------
-    def _pieces(self, text: str, start: int, end: int, sep: str) -> List[Span]:
+    def _pieces(self, text: str, start: int, end: int, sep: str) -> list[Span]:
         """Split text[start:end] on `sep`, keeping the separator on the left piece."""
         if sep == "":
             return [(i, i + 1) for i in range(start, end)]

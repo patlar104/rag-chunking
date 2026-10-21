@@ -13,7 +13,8 @@ from __future__ import annotations
 import json
 import os
 import re
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 from . import events, ollama
 
@@ -30,9 +31,9 @@ class OllamaLLM:
         ollama pull llama3.2:1b     # 1.3 GB
     """
 
-    def __init__(self, model: str = "llama3.2:3b", host: Optional[str] = None,
-                 temperature: float = 0.0, num_ctx: Optional[int] = 4096, keep_alive: str = "10m",
-                 timeout: float = 300, system: Optional[str] = None, think: Optional[bool] = None):
+    def __init__(self, model: str = "llama3.2:3b", host: str | None = None,
+                 temperature: float = 0.0, num_ctx: int | None = 4096, keep_alive: str = "10m",
+                 timeout: float = 300, system: str | None = None, think: bool | None = None):
         self.model, self.name = model, f"ollama:{model}"
         self.client = ollama.Client(host, timeout=timeout)
         self.options = {"temperature": temperature}
@@ -61,7 +62,7 @@ class OllamaLLM:
     def __call__(self, prompt: str) -> str:
         return self._chat(prompt)
 
-    def complete_json(self, prompt: str, schema: Optional[dict] = None) -> str:
+    def complete_json(self, prompt: str, schema: dict | None = None) -> str:
         if schema and self._schema_ok:
             try:
                 return self._chat(prompt, schema)          # structured outputs (Ollama >= 0.5)
@@ -80,7 +81,7 @@ class OpenAILLM:
     OpenAI-compatible server (LM Studio, vLLM, llama.cpp, Groq, ...)."""
 
     def __init__(self, model: str = "gpt-4o-mini", temperature: float = 0.0,
-                 base_url: Optional[str] = None, api_key: Optional[str] = None):
+                 base_url: str | None = None, api_key: str | None = None):
         try:
             from openai import OpenAI  # type: ignore
         except ImportError as e:
@@ -102,7 +103,7 @@ class OpenAILLM:
     def __call__(self, prompt: str) -> str:
         return self._chat(prompt)
 
-    def complete_json(self, prompt: str, schema: Optional[dict] = None) -> str:
+    def complete_json(self, prompt: str, schema: dict | None = None) -> str:
         return self._chat(prompt, response_format={"type": "json_object"})
 
 
@@ -120,7 +121,7 @@ def _ollama_usage(r: dict) -> dict:
     return out
 
 
-def get_llm(spec: Optional[str], **kwargs):
+def get_llm(spec: str | None, **kwargs):
     """'ollama[:model]', 'openai[:model]', 'deepinfra[:model]', 'auto', or None/'none'."""
     if not spec or spec == "none":
         return None
@@ -151,7 +152,7 @@ def _looks_like_embedder(name: str) -> bool:
     return any(t in name for t in ("embed", "minilm", "bge", "e5-", "gte", "arctic"))
 
 
-def ask_json(llm, prompt: str, schema: Optional[dict] = None, retries: int = 1) -> Any:
+def ask_json(llm, prompt: str, schema: dict | None = None, retries: int = 1) -> Any:
     """Ask for JSON, using the backend's JSON mode when it has one; retry on bad output."""
     last_err = None
     for attempt in range(retries + 1):
@@ -189,5 +190,5 @@ def openai_llm(model: str = "gpt-4o-mini", temperature: float = 0.0) -> LLM:
     return OpenAILLM(model, temperature)
 
 
-def ollama_llm(model: str = "llama3.2:3b", host: Optional[str] = None) -> LLM:
+def ollama_llm(model: str = "llama3.2:3b", host: str | None = None) -> LLM:
     return OllamaLLM(model, host)

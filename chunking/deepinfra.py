@@ -20,7 +20,7 @@ import os
 import time
 import urllib.error
 import urllib.request
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from . import events
 from .embeddings import BaseEmbedder
@@ -31,7 +31,7 @@ DEFAULT_LLM = "Qwen/Qwen2.5-7B-Instruct"
 
 
 class DeepInfraError(RuntimeError):
-    def __init__(self, message: str, status: Optional[int] = None):
+    def __init__(self, message: str, status: int | None = None):
         super().__init__(message)
         self.status = status
 
@@ -42,14 +42,14 @@ def configured() -> bool:
 
 
 class Client:
-    def __init__(self, base_url: Optional[str] = None, api_key: Optional[str] = None,
-                 auth_header: Optional[str] = None, timeout: float = 60, retries: int = 2):
+    def __init__(self, base_url: str | None = None, api_key: str | None = None,
+                 auth_header: str | None = None, timeout: float = 60, retries: int = 2):
         self.base = (base_url or os.environ.get("DEEPINFRA_BASE_URL") or DEFAULT_BASE).rstrip("/")
         self.key = api_key if api_key is not None else os.environ.get("DEEPINFRA_API_KEY", "")
         self.auth_header = auth_header or os.environ.get("DEEPINFRA_AUTH_HEADER") or "Authorization"
         self.timeout, self.retries = timeout, retries
 
-    def _headers(self) -> Dict[str, str]:
+    def _headers(self) -> dict[str, str]:
         h = {"Content-Type": "application/json", "User-Agent": "rag-chunking"}
         if self.key:
             h[self.auth_header] = f"Bearer {self.key}" if self.auth_header.lower() == "authorization" else self.key
@@ -95,13 +95,13 @@ class DeepInfraEmbedder(BaseEmbedder):
 
     batch_size = 64
 
-    def __init__(self, model: str = DEFAULT_EMBED, doc_prefix: Optional[str] = None,
-                 query_prefix: Optional[str] = None, **client_kw: Any):
+    def __init__(self, model: str = DEFAULT_EMBED, doc_prefix: str | None = None,
+                 query_prefix: str | None = None, **client_kw: Any):
         super().__init__(doc_prefix, query_prefix, model)
         self.model, self.name = model, f"deepinfra:{model}"
         self.client = Client(**client_kw)
 
-    def _embed(self, texts: List[str]) -> List[List[float]]:
+    def _embed(self, texts: list[str]) -> list[list[float]]:
         r = self.client.post("/embeddings", {"model": self.model, "input": texts, "encoding_format": "float"})
         return [d["embedding"] for d in sorted(r["data"], key=lambda d: d["index"])]
 
@@ -117,7 +117,7 @@ class DeepInfraLLM:
         self.calls = 0
 
     def _chat(self, prompt: str, json_mode: bool = False) -> str:
-        body: Dict[str, Any] = {"model": self.model, "temperature": self.temperature, "max_tokens": self.max_tokens,
+        body: dict[str, Any] = {"model": self.model, "temperature": self.temperature, "max_tokens": self.max_tokens,
                                 "messages": [{"role": "user", "content": prompt}]}
         if json_mode:
             body["response_format"] = {"type": "json_object"}
@@ -136,7 +136,7 @@ class DeepInfraLLM:
     def __call__(self, prompt: str) -> str:
         return self._chat(prompt)
 
-    def complete_json(self, prompt: str, schema: Optional[dict] = None) -> str:
+    def complete_json(self, prompt: str, schema: dict | None = None) -> str:
         return self._chat(prompt, json_mode=True)
 
     def __repr__(self):

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, Optional
+from typing import Any
 
 from .. import get_chunker, with_overlap
 from ..base import Chunk
@@ -13,9 +13,9 @@ NON_EMBED_KEYS = ("source_passage", "start_index", "end_index", "strategy", "spl
                   "first_token", "overlap_tokens")
 
 
-def flatten(md: Dict[str, Any]) -> Dict[str, Any]:
+def flatten(md: dict[str, Any]) -> dict[str, Any]:
     """Vector stores (Chroma, Pinecone, ...) only accept str/int/float/bool values."""
-    out: Dict[str, Any] = {}
+    out: dict[str, Any] = {}
     for k, v in md.items():
         if v is None:
             continue
@@ -28,7 +28,7 @@ def flatten(md: Dict[str, Any]) -> Dict[str, Any]:
     return out
 
 
-def chunk_metadata(chunk: Chunk, flat: bool = True) -> Dict[str, Any]:
+def chunk_metadata(chunk: Chunk, flat: bool = True) -> dict[str, Any]:
     md = dict(chunk.metadata)
     if chunk.start >= 0:
         md["start_index"], md["end_index"] = chunk.start, chunk.end
@@ -74,7 +74,7 @@ def model_label(obj: Any, prefix: str) -> str:
     return f"{prefix}:{type(obj).__name__}"
 
 
-def resolve_embedder(embed: Optional[Any]):
+def resolve_embedder(embed: Any | None):
     """Accept a spec string ('ollama:nomic-embed-text') or an embedder object."""
     if isinstance(embed, str):
         from ..embeddings import get_embedder
@@ -82,7 +82,7 @@ def resolve_embedder(embed: Optional[Any]):
     return embed
 
 
-def resolve_llm(llm: Optional[Any]):
+def resolve_llm(llm: Any | None):
     if isinstance(llm, str):
         from ..llm import get_llm
         return get_llm(llm)

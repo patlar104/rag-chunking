@@ -4,17 +4,21 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rag-chunking"
-version = "0.4.0"
+version = "0.5.0"
 description = "The 6 production RAG chunking algorithms, with Ollama/DeepInfra/OpenAI backends, LangChain + LlamaIndex integrations and a live health dashboard"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Patrick Larocque" }]
-requires-python = ">=3.9"
+requires-python = ">=3.13"   # tested on 3.13, 3.14 and 3.15; 3.15 recommended
 dependencies = []   # the core library and the Ollama/DeepInfra clients use only the standard library
 keywords = ["rag", "chunking", "embeddings", "langchain", "llamaindex", "ollama"]
 classifiers = [
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.15",
   "Topic :: Text Processing",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
@@ -22,11 +26,11 @@ classifiers = [
 [project.optional-dependencies]
 webui = ["fastapi>=0.110", "uvicorn>=0.27"]
 langchain = ["langchain-core>=0.3", "langchain-text-splitters>=0.3"]
-llamaindex = ["llama-index-core>=0.12; python_version >= '3.10'"]
+llamaindex = ["llama-index-core>=0.12"]
 st = ["sentence-transformers>=2.6"]
 openai = ["openai>=1.0"]
 dev = ["fastapi>=0.110", "uvicorn>=0.27", "httpx>=0.27", "langchain-core>=0.3",
-       "langchain-text-splitters>=0.3", "llama-index-core>=0.12; python_version >= '3.10'", "ruff>=0.6",
+       "langchain-text-splitters>=0.3", "llama-index-core>=0.12", "ruff>=0.6",
        "build>=1.0"]
 all = ["rag-chunking[webui,langchain,llamaindex,st,openai]"]
 
@@ -41,10 +45,10 @@ include = ["chunking*", "webui*"]
 webui = ["static/*"]
 
 [tool.ruff]
-target-version = "py39"
+target-version = "py313"
 line-length = 120
 extend-exclude = ["docs"]
 
 [tool.ruff.lint]
 select = ["E9", "F", "B", "UP", "I"]
-ignore = ["UP006", "UP007", "UP035", "UP045", "B008", "B905"]
+ignore = ["B008", "B905"]

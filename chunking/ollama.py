@@ -9,7 +9,7 @@ import os
 import sys
 import urllib.error
 import urllib.request
-from typing import Iterator, List, Optional
+from collections.abc import Iterator
 
 DEFAULT_HOST = "http://localhost:11434"
 
@@ -30,7 +30,7 @@ class EndpointMissing(OllamaError):
     """The server is too old to have this endpoint."""
 
 
-def resolve_host(host: Optional[str] = None) -> str:
+def resolve_host(host: str | None = None) -> str:
     host = host or os.environ.get("OLLAMA_HOST") or DEFAULT_HOST
     if "://" not in host:
         host = "http://" + host
@@ -43,12 +43,12 @@ def resolve_host(host: Optional[str] = None) -> str:
 
 
 class Client:
-    def __init__(self, host: Optional[str] = None, timeout: float = 120):
+    def __init__(self, host: str | None = None, timeout: float = 120):
         self.host = resolve_host(host)
         self.timeout = timeout
 
     # -- transport -------------------------------------------------------------
-    def _request(self, method: str, path: str, body: Optional[dict] = None, timeout=None):
+    def _request(self, method: str, path: str, body: dict | None = None, timeout=None):
         data = json.dumps(body).encode() if body is not None else None
         req = urllib.request.Request(self.host + path, data=data, method=method,
                                      headers={"Content-Type": "application/json"})
@@ -106,7 +106,7 @@ class Client:
     def version(self) -> str:
         return self.get("/api/version").get("version", "?")
 
-    def list_models(self) -> List[str]:
+    def list_models(self) -> list[str]:
         return [m["name"] for m in self.get("/api/tags").get("models", [])]
 
     def has_model(self, model: str) -> bool:

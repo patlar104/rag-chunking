@@ -23,7 +23,8 @@ Or use this package's embedders inside LlamaIndex:
 """
 from __future__ import annotations
 
-from typing import Any, List, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 try:
     from llama_index.core.base.embeddings.base import BaseEmbedding
@@ -60,11 +61,11 @@ class LlamaIndexEmbedder:
         self.li = embed_model
         self.name = model_label(embed_model, "llamaindex")
 
-    def __call__(self, texts: List[str]) -> List[List[float]]:
+    def __call__(self, texts: list[str]) -> list[list[float]]:
         with events.timed("embed.call", backend=self.name, n=len(texts)):
             return self.li.get_text_embedding_batch(list(texts))
 
-    def query(self, text: str) -> List[float]:
+    def query(self, text: str) -> list[float]:
         with events.timed("embed.call", backend=self.name, n=1):
             return self.li.get_query_embedding(text)
 
@@ -132,8 +133,8 @@ class ChunkingNodeParser(NodeParser):
     def chunker(self):
         return self._chunker
 
-    def _parse_nodes(self, nodes: Sequence[BaseNode], show_progress: bool = False, **kwargs: Any) -> List[BaseNode]:
-        out: List[BaseNode] = []
+    def _parse_nodes(self, nodes: Sequence[BaseNode], show_progress: bool = False, **kwargs: Any) -> list[BaseNode]:
+        out: list[BaseNode] = []
         for node in get_tqdm_iterable(nodes, show_progress, "Chunking"):
             text = node.get_content()
             chunks = run_chunker(self._chunker, text, self.overlap_tokens)
@@ -169,17 +170,17 @@ class ChunkingEmbedding(BaseEmbedding):
     def class_name(cls) -> str:
         return "ChunkingEmbedding"
 
-    def _get_text_embedding(self, text: str) -> List[float]:
+    def _get_text_embedding(self, text: str) -> list[float]:
         return self._embedder([text])[0]
 
-    def _get_text_embeddings(self, texts: List[str]) -> List[List[float]]:
+    def _get_text_embeddings(self, texts: list[str]) -> list[list[float]]:
         return self._embedder(list(texts))
 
-    def _get_query_embedding(self, query: str) -> List[float]:
+    def _get_query_embedding(self, query: str) -> list[float]:
         return embed_query(self._embedder, query)
 
-    async def _aget_query_embedding(self, query: str) -> List[float]:
+    async def _aget_query_embedding(self, query: str) -> list[float]:
         return self._get_query_embedding(query)
 
-    async def _aget_text_embedding(self, text: str) -> List[float]:
+    async def _aget_text_embedding(self, text: str) -> list[float]:
         return self._get_text_embedding(text)

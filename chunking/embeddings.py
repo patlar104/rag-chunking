@@ -19,12 +19,12 @@ import os
 import re
 import sqlite3
 import sys
+from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Callable, List, Optional, Sequence
 
 from . import events, ollama
 
-Embedder = Callable[[List[str]], List[List[float]]]
+Embedder = Callable[[list[str]], list[list[float]]]
 
 # Instruction prefixes for popular asymmetric models: (document prefix, query prefix).
 # Getting these wrong silently costs retrieval quality, so we apply them for you.
@@ -53,27 +53,27 @@ class BaseEmbedder:
     name = "base"
     batch_size = 64
 
-    def __init__(self, doc_prefix: Optional[str] = None, query_prefix: Optional[str] = None,
+    def __init__(self, doc_prefix: str | None = None, query_prefix: str | None = None,
                  model: str = ""):
         auto_doc, auto_query = _prefixes_for(model)
         self.doc_prefix = auto_doc if doc_prefix is None else doc_prefix
         self.query_prefix = auto_query if query_prefix is None else query_prefix
 
-    def _embed(self, texts: List[str]) -> List[List[float]]:  # implement in subclasses
+    def _embed(self, texts: list[str]) -> list[list[float]]:  # implement in subclasses
         raise NotImplementedError
 
-    def _run(self, texts: List[str]) -> List[List[float]]:
-        out: List[List[float]] = []
+    def _run(self, texts: list[str]) -> list[list[float]]:
+        out: list[list[float]] = []
         for i in range(0, len(texts), self.batch_size):
             batch = texts[i : i + self.batch_size]
             with events.timed("embed.call", backend=self.name, n=len(batch)):
                 out.extend(_normalize(v) for v in self._embed(batch))
         return out
 
-    def __call__(self, texts: List[str]) -> List[List[float]]:
+    def __call__(self, texts: list[str]) -> list[list[float]]:
         return self._run([self.doc_prefix + t for t in texts]) if texts else []
 
-    def query(self, text: str) -> List[float]:
+    def query(self, text: str) -> list[float]:
         return self._run([self.query_prefix + text])[0]
 
     def __repr__(self) -> str:
@@ -132,8 +132,8 @@ class OllamaEmbedder(BaseEmbedder):
 
     batch_size = 32
 
-    def __init__(self, model: str = "nomic-embed-text", host: Optional[str] = None,
-                 doc_prefix: Optional[str] = None, query_prefix: Optional[str] = None,
+    def __init__(self, model: str = "nomic-embed-text", host: str | None = None,
+                 doc_prefix: str | None = None, query_prefix: str | None = None,
                  truncate: bool = True, keep_alive: str = "5m", timeout: float = 120):
         super().__init__(doc_prefix, query_prefix, model)
         self.model, self.name = model, f"ollama:{model}"
@@ -166,8 +166,8 @@ class SentenceTransformerEmbedder(BaseEmbedder):
 
     batch_size = 64
 
-    def __init__(self, model: str = "all-MiniLM-L6-v2", device: Optional[str] = None,
-                 doc_prefix: Optional[str] = None, query_prefix: Optional[str] = None,
+    def __init__(self, model: str = "all-MiniLM-L6-v2", device: str | None = None,
+                 doc_prefix: str | None = None, query_prefix: str | None = None,
                  trust_remote_code: bool = False):
         super().__init__(doc_prefix, query_prefix, model)
         try:
@@ -191,8 +191,8 @@ class OpenAIEmbedder(BaseEmbedder):
 
     batch_size = 256
 
-    def __init__(self, model: str = "text-embedding-3-small", base_url: Optional[str] = None,
-                 api_key: Optional[str] = None, dimensions: Optional[int] = None):
+    def __init__(self, model: str = "text-embedding-3-small", base_url: str | None = None,
+                 api_key: str | None = None, dimensions: int | None = None):
         super().__init__("", "", model)
         try:
             from openai import OpenAI  # type: ignore
@@ -216,7 +216,7 @@ class CachedEmbedder:
     over; with a cache, only new text hits the model.
     """
 
-    def __init__(self, inner, path: Optional[str] = None):
+    def __init__(self, inner, path: str | None = None):
         self.inner = inner
         self.name = getattr(inner, "name", type(inner).__name__)
         default = Path(os.environ.get("CHUNKING_CACHE_DIR", Path.home() / ".cache" / "rag-chunking"))
@@ -229,7 +229,7 @@ class CachedEmbedder:
     def _key(self, kind: str, text: str) -> str:
         return hashlib.sha256(f"{self.name}\x00{kind}\x00{text}".encode()).hexdigest()
 
-    def _lookup(self, kind: str, texts: List[str], compute):
+    def _lookup(self, kind: str, texts: list[str], compute):
         keys = [self._key(kind, t) for t in texts]
         found = {}
         for i in range(0, len(keys), 500):
@@ -248,10 +248,10 @@ class CachedEmbedder:
             found.update(dict((k, json.loads(v)) for k, v in rows))
         return [found[k] for k in keys]
 
-    def __call__(self, texts: List[str]) -> List[List[float]]:
+    def __call__(self, texts: list[str]) -> list[list[float]]:
         return self._lookup("doc", texts, self.inner)
 
-    def query(self, text: str) -> List[float]:
+    def query(self, text: str) -> list[float]:
         q = getattr(self.inner, "query", None)
         return self._lookup("query", [text], lambda ts: [q(ts[0]) if q else self.inner(ts)[0]])[0]
 
@@ -332,7 +332,7 @@ def openai_embedder(model: str = "text-embedding-3-small") -> Embedder:
     return OpenAIEmbedder(model)
 
 
-def embed_query(embed, text: str) -> List[float]:
+def embed_query(embed, text: str) -> list[float]:
     """Embed a search query, using the model's query prefix when it has one."""
     q = getattr(embed, "query", None)
     return q(text) if q else embed([text])[0]
@@ -340,7 +340,7 @@ def embed_query(embed, text: str) -> List[float]:
 
 # -- maths ----------------------------------------------------------------------------
 
-def _normalize(v: Sequence[float]) -> List[float]:
+def _normalize(v: Sequence[float]) -> list[float]:
     n = math.sqrt(sum(x * x for x in v)) or 1.0
     return [x / n for x in v]
 
@@ -352,6 +352,6 @@ def cosine(a: Sequence[float], b: Sequence[float]) -> float:
     return dot / (na * nb)
 
 
-def mean(vectors: List[List[float]]) -> List[float]:
+def mean(vectors: list[list[float]]) -> list[float]:
     n = len(vectors)
     return [sum(col) / n for col in zip(*vectors)]

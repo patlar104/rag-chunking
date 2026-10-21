@@ -21,7 +21,6 @@ import threading
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import List, Optional
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -67,7 +66,7 @@ class Hub:
 
     def __init__(self):
         self.clients: set = set()
-        self.loop: Optional[asyncio.AbstractEventLoop] = None
+        self.loop: asyncio.AbstractEventLoop | None = None
 
     def publish(self, kind: str, data) -> None:
         if self.loop is None or not self.clients:
@@ -174,7 +173,7 @@ class SettingsIn(BaseModel):
 
 class RunIn(BaseModel):
     text: str = Field(..., max_length=200_000)
-    strategies: List[str]
+    strategies: list[str]
     size: int = Field(80, ge=10, le=2000)
     overlap: int = Field(0, ge=0, le=500)
     stability: bool = False
@@ -290,7 +289,7 @@ class CancelIn(BaseModel):
 
 
 @app.post("/api/runs/{run_id}/cancel")
-def cancel_run(run_id: str, body: Optional[CancelIn] = None):
+def cancel_run(run_id: str, body: CancelIn | None = None):
     run = runner.runs.get(run_id)
     if PUBLIC["enabled"] and run and (body is None or body.token != run["cancel_token"]):
         raise HTTPException(403, "only the browser that started this run can cancel it")
@@ -316,7 +315,7 @@ async def stream(request: Request):
                     break
                 try:
                     yield await asyncio.wait_for(q.get(), timeout=15)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     yield ": keep-alive\n\n"
         finally:
             hub.clients.discard(q)

@@ -8,7 +8,7 @@ import threading
 import time
 from collections import deque
 from pathlib import Path
-from typing import Any, Deque, Dict, List, Optional
+from typing import Any
 
 from chunking import events, ollama
 from chunking.embeddings import get_embedder
@@ -17,7 +17,7 @@ from chunking.llm import get_llm
 RANK = {"ok": 0, "off": 0, "degraded": 1, "down": 2}
 
 
-def pct(values: List[float], p: float) -> Optional[float]:
+def pct(values: list[float], p: float) -> float | None:
     if not values:
         return None
     s = sorted(values)
@@ -33,12 +33,12 @@ class Metrics:
 
     def __init__(self):
         self.lock = threading.Lock()
-        self.calls: Deque[Dict] = deque(maxlen=20000)
-        self.marks: Deque[Dict] = deque(maxlen=5000)   # retries, failures, fallbacks
+        self.calls: deque[dict] = deque(maxlen=20000)
+        self.marks: deque[dict] = deque(maxlen=5000)   # retries, failures, fallbacks
         self.cache = {"hits": 0, "misses": 0}
         self.totals = {"embed": 0, "llm": 0, "errors": 0, "retries": 0, "json_failures": 0, "fallbacks": 0}
 
-    def record(self, ev: Dict) -> None:
+    def record(self, ev: dict) -> None:
         t = ev["type"]
         with self.lock:
             if t in ("embed.call", "llm.call"):
@@ -57,7 +57,7 @@ class Metrics:
                 self.totals[key] += 1
                 self.marks.append({"ts": ev["ts"], "kind": key})
 
-    def _op_summary(self, rows: List[Dict], now: float) -> Dict[str, Any]:
+    def _op_summary(self, rows: list[dict], now: float) -> dict[str, Any]:
         recent = [r for r in rows if now - r["ts"] <= 300]
         ms = [r["ms"] for r in recent if r["ok"]]
         errs = [r for r in recent if not r["ok"]]
@@ -77,7 +77,7 @@ class Metrics:
             "backends": sorted({r["backend"] for r in recent}),
         }
 
-    def snapshot(self) -> Dict[str, Any]:
+    def snapshot(self) -> dict[str, Any]:
         now = time.time()
         with self.lock:
             calls = [c for c in self.calls if now - c["ts"] <= self.WINDOW]
@@ -126,20 +126,20 @@ class HealthMonitor:
     EMBED_PROBE_EVERY = 15.0
     LLM_PROBE_EVERY = 60.0
 
-    def __init__(self, metrics: Metrics, runner_state, host: Optional[str] = None):
+    def __init__(self, metrics: Metrics, runner_state, host: str | None = None):
         self.metrics, self.runner_state = metrics, runner_state
         self.host = host
         self.lock = threading.Lock()
         self.embed_spec, self.llm_spec = "hashing", "none"
         self._embed_probe = self._llm_probe = None
         self._last_embed_probe = self._last_llm_probe = 0.0
-        self._probe_results: Dict[str, Dict] = {}
-        self.history: Dict[str, Deque] = {k: deque(maxlen=150) for k in
+        self._probe_results: dict[str, dict] = {}
+        self.history: dict[str, deque] = {k: deque(maxlen=150) for k in
                                           ("ollama", "embedder", "llm", "overall")}
-        self.transitions: Deque = deque(maxlen=500)
+        self.transitions: deque = deque(maxlen=500)
         self.started = time.time()
         self._cpu = (time.process_time(), time.time())
-        self.snapshot: Dict[str, Any] = {}
+        self.snapshot: dict[str, Any] = {}
         self._force = threading.Event()
         self._stop = threading.Event()
 
@@ -184,7 +184,7 @@ class HealthMonitor:
     def _uses_ollama(self) -> bool:
         return self.embed_spec.startswith(("ollama", "auto")) or self.llm_spec.startswith(("ollama", "auto"))
 
-    def _ollama(self) -> Dict[str, Any]:
+    def _ollama(self) -> dict[str, Any]:
         client = ollama.Client(self.host, timeout=2)
         t0 = time.perf_counter()
         try:
@@ -207,12 +207,12 @@ class HealthMonitor:
         return {"status": status, "host": client.host, "version": version, "ping_ms": ping,
                 "loaded": loaded, "installed": installed, "required": self._uses_ollama()}
 
-    def _probe_embedder(self, now: float) -> Dict[str, Any]:
+    def _probe_embedder(self, now: float) -> dict[str, Any]:
         spec = self.embed_spec
         if now - self._last_embed_probe < self.EMBED_PROBE_EVERY and "embedder" in self._probe_results:
             return self._probe_results["embedder"]
         self._last_embed_probe = now
-        res: Dict[str, Any] = {"spec": spec}
+        res: dict[str, Any] = {"spec": spec}
         try:
             if self._embed_probe is None:
                 self._embed_probe = get_embedder(spec, cache=False, **({"host": self.host} if self.host and spec.startswith(("ollama", "auto")) else {}))
@@ -227,14 +227,14 @@ class HealthMonitor:
         self._probe_results["embedder"] = res
         return res
 
-    def _probe_llm(self, now: float) -> Dict[str, Any]:
+    def _probe_llm(self, now: float) -> dict[str, Any]:
         spec = self.llm_spec
         if spec in ("none", ""):
             return {"spec": "none", "status": "off", "name": "offline heuristics"}
         if now - self._last_llm_probe < self.LLM_PROBE_EVERY and "llm" in self._probe_results:
             return self._probe_results["llm"]
         self._last_llm_probe = now
-        res: Dict[str, Any] = {"spec": spec}
+        res: dict[str, Any] = {"spec": spec}
         try:
             if self._llm_probe is None:
                 self._llm_probe = get_llm(spec, **({"host": self.host} if self.host and spec.startswith(("ollama", "auto")) else {}))
@@ -253,7 +253,7 @@ class HealthMonitor:
         self._probe_results["llm"] = res
         return res
 
-    def _hosted(self, emb, llm, m) -> List[Dict[str, Any]]:
+    def _hosted(self, emb, llm, m) -> list[dict[str, Any]]:
         """Hosted (API) models in use, for the Model state panel."""
         out = []
         for kind, spec, comp, op in (("embedding", self.embed_spec, emb, "embed"), ("chat", self.llm_spec, llm, "llm")):
@@ -267,10 +267,10 @@ class HealthMonitor:
                         "calls_5m": o["calls_5m"], "tokens_per_s": o.get("tokens_per_s")})
         return out
 
-    def _cache(self) -> Dict[str, Any]:
+    def _cache(self) -> dict[str, Any]:
         d = Path(os.environ.get("CHUNKING_CACHE_DIR", Path.home() / ".cache" / "rag-chunking"))
         path = d / "embeddings.sqlite"
-        info: Dict[str, Any] = {"path": str(path), "status": "ok"}
+        info: dict[str, Any] = {"path": str(path), "status": "ok"}
         if path.exists():
             info["bytes"] = path.stat().st_size
             try:
@@ -283,7 +283,7 @@ class HealthMonitor:
             info.update(bytes=0, entries=0)
         return info
 
-    def _process(self, now: float) -> Dict[str, Any]:
+    def _process(self, now: float) -> dict[str, Any]:
         rss = None
         try:
             with open("/proc/self/status") as fh:
@@ -303,7 +303,7 @@ class HealthMonitor:
                 "cpus": os.cpu_count(), "uptime_s": round(now - self.started)}
 
     # -- aggregation ------------------------------------------------------------------------
-    def _collect(self) -> Dict[str, Any]:
+    def _collect(self) -> dict[str, Any]:
         now = time.time()
         worker = self.runner_state()
         busy = worker.get("state") == "running"

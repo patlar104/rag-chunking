@@ -1,8 +1,6 @@
 """Strategy 01: fixed-size chunking (fast character or token slicing)."""
 from __future__ import annotations
 
-from typing import List
-
 from .base import Chunk, token_spans
 
 
@@ -23,9 +21,9 @@ class FixedSizeChunker:
             raise ValueError("unit must be 'tokens' or 'chars'")
         self.chunk_size, self.overlap, self.unit = chunk_size, overlap, unit
 
-    def split(self, text: str) -> List[Chunk]:
+    def split(self, text: str) -> list[Chunk]:
         step = self.chunk_size - self.overlap
-        chunks: List[Chunk] = []
+        chunks: list[Chunk] = []
         if self.unit == "chars":
             for i in range(0, len(text), step):
                 piece = text[i : i + self.chunk_size]

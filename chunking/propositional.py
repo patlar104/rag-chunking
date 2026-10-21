@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import re
-from typing import List, Optional
 
 from . import events
 from .base import Chunk, sentence_spans
@@ -41,7 +40,7 @@ def _verbish(word: str) -> bool:
                          and w not in {"this", "its", "thus", "always", "towards"})
 
 
-def _subject(sentence: str) -> Optional[str]:
+def _subject(sentence: str) -> str | None:
     """Leading noun phrase, e.g. 'The append-only file loses ...' -> 'The append-only file'.
     Conservative: returns None unless the phrase looks like a real subject."""
     words = sentence.split()
@@ -74,14 +73,14 @@ class PropositionalChunker:
     can still see how it works offline.
     """
 
-    def __init__(self, llm: Optional[LLM] = None, passage_sentences: int = 4):
+    def __init__(self, llm: LLM | None = None, passage_sentences: int = 4):
         self.llm = llm
         self.passage_sentences = passage_sentences
 
-    def split(self, text: str) -> List[Chunk]:
+    def split(self, text: str) -> list[Chunk]:
         # Code blocks and tables aren't prose facts: skip them (and save model calls).
         spans = [sp for sp in sentence_spans(text) if not _is_structured(text[sp[0]:sp[1]])]
-        chunks: List[Chunk] = []
+        chunks: list[Chunk] = []
         subject = None
         for i in range(0, len(spans), self.passage_sentences):
             group = spans[i : i + self.passage_sentences]
@@ -105,7 +104,7 @@ class PropositionalChunker:
                                               "source_passage": passage}))
         return chunks
 
-    def _ask(self, passage: str) -> List[str]:
+    def _ask(self, passage: str) -> list[str]:
         data = ask_json(self.llm, PROMPT.format(passage=passage), SCHEMA)
         if isinstance(data, dict):
             data = data.get("propositions", next((v for v in data.values() if isinstance(v, list)), []))
@@ -115,7 +114,7 @@ class PropositionalChunker:
 
     # -- offline fallback --------------------------------------------------
     @staticmethod
-    def _rule_based(sentences: List[str], subject: Optional[str]):
+    def _rule_based(sentences: list[str], subject: str | None):
         """Split compound sentences into clauses and replace leading pronouns.
         Approximate by design; use an LLM for real propositional chunking."""
         props = []

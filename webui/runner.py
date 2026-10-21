@@ -7,7 +7,8 @@ import secrets
 import threading
 import time
 import traceback
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Callable
+from typing import Any
 
 from chunking import STRATEGIES, chunk_stats, events, get_chunker, with_overlap
 from chunking.embeddings import get_embedder
@@ -28,7 +29,7 @@ class _Guard:
     """Wraps an embedder/LLM so a cancelled run stops at the next model call,
     and (for LLMs) so the hourly spend budget is enforced."""
 
-    def __init__(self, inner, run: Dict, budget=None):
+    def __init__(self, inner, run: dict, budget=None):
         self._inner, self._run, self._budget = inner, run, budget
         self.name = getattr(inner, "name", type(inner).__name__)
 
@@ -52,12 +53,12 @@ class _Guard:
         return attr
 
 
-def boundaries(text: str, chunks) -> List[int]:
+def boundaries(text: str, chunks) -> list[int]:
     real = [c for c in chunks if c.start >= 0]
     return sorted({c.end for c in real[:-1]})
 
 
-def boundary_agreement(a: List[int], b: List[int], tol: int = 25) -> float:
+def boundary_agreement(a: list[int], b: list[int], tol: int = 25) -> float:
     """F1 between two boundary sets; boundaries within `tol` chars count as the same cut."""
     if not a and not b:
         return 1.0
@@ -72,24 +73,24 @@ def boundary_agreement(a: List[int], b: List[int], tol: int = 25) -> float:
 class Runner:
     MAX_RUNS = 30
 
-    def __init__(self, publish: Callable[[str, Dict], None]):
+    def __init__(self, publish: Callable[[str, dict], None]):
         self.publish = publish
         self.queue: queue.Queue[str] = queue.Queue()
-        self.runs: Dict[str, Dict] = {}
-        self.order: List[str] = []
+        self.runs: dict[str, dict] = {}
+        self.order: list[str] = []
         self.ids = itertools.count(1)
-        self.current: Optional[str] = None
+        self.current: str | None = None
         self.completed = self.failed = 0
         self.in_trial = False  # stability re-runs: keep their events out of the live view
-        self.llm_budget: Optional[int] = None  # max LLM calls per rolling hour (None = unlimited)
-        self._llm_calls: List[float] = []
+        self.llm_budget: int | None = None  # max LLM calls per rolling hour (None = unlimited)
+        self._llm_calls: list[float] = []
         self.lock = threading.Lock()
         self.thread = threading.Thread(target=self._loop, name="chunk-runner", daemon=True)
         self.thread.start()
 
     # -- public API ----------------------------------------------------------------------------
-    def submit(self, text: str, strategies: List[str], size: int, overlap: int, embed: str, llm: str,
-               stability: bool) -> Dict:
+    def submit(self, text: str, strategies: list[str], size: int, overlap: int, embed: str, llm: str,
+               stability: bool) -> dict:
         bad = [s for s in strategies if s not in STRATEGIES]
         if bad or not strategies:
             raise ValueError(f"unknown strategies: {bad or 'none selected'}")
@@ -121,7 +122,7 @@ class Runner:
             self.publish("run.finished", self.summary(run))
         return True
 
-    def state(self) -> Dict[str, Any]:
+    def state(self) -> dict[str, Any]:
         cur = self.runs.get(self.current) if self.current else None
         queued = sum(1 for r in self.runs.values() if r["status"] == "queued")
         status = "ok" if queued <= 3 else "degraded"
@@ -129,7 +130,7 @@ class Runner:
                 "state": "running" if cur else "idle", "current": self.summary(cur) if cur else None,
                 "queued": queued, "completed": self.completed, "failed": self.failed}
 
-    def summary(self, run: Optional[Dict]) -> Optional[Dict]:
+    def summary(self, run: dict | None) -> dict | None:
         if not run:
             return None
         return {k: run[k] for k in ("id", "status", "created", "started", "finished", "strategies", "size",
@@ -138,7 +139,7 @@ class Runner:
             "done": [s for s, r in run["results"].items() if r.get("status") in ("done", "error")],
         }
 
-    def detail(self, run_id: str) -> Optional[Dict]:
+    def detail(self, run_id: str) -> dict | None:
         run = self.runs.get(run_id)
         if not run:
             return None
@@ -186,7 +187,7 @@ class Runner:
             self._llm_calls.append(now)
             return True
 
-    def budget_state(self) -> Optional[Dict[str, int]]:
+    def budget_state(self) -> dict[str, int] | None:
         if self.llm_budget is None:
             return None
         now = time.time()
@@ -229,7 +230,7 @@ class Runner:
             run["progress"] = {"index": i, "total": n, "strategy": name}
             self.publish("strategy.started", {"run": run["id"], "strategy": name, "index": i, "total": n})
             t0 = time.perf_counter()
-            res: Dict[str, Any] = {"status": "running"}
+            res: dict[str, Any] = {"status": "running"}
             run["results"][name] = res
             try:
                 chunks = self._chunks(name, text, run["size"], run["overlap"], embed, llm)
@@ -256,7 +257,7 @@ class Runner:
         if errors:
             run["error"] = f"{len(errors)} of {n} strategies failed"
 
-    def _stability(self, name, text, run, embed, llm, base_chunks) -> Dict[str, Any]:
+    def _stability(self, name, text, run, embed, llm, base_chunks) -> dict[str, Any]:
         """Boundary stability: re-chunk with the size perturbed by ±15% and measure how many
         cut points survive (F1 with a 25-character tolerance)."""
         base = boundaries(text, base_chunks)

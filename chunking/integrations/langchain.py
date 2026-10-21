@@ -22,7 +22,8 @@ Or use this package's embedders (Ollama, sentence-transformers, cache) inside La
 from __future__ import annotations
 
 import copy
-from typing import Any, Iterable, List, Optional
+from collections.abc import Iterable
+from typing import Any
 
 try:
     from langchain_core.documents import Document
@@ -47,11 +48,11 @@ class LangChainEmbedder:
         self.lc = embeddings
         self.name = model_label(embeddings, "langchain")
 
-    def __call__(self, texts: List[str]) -> List[List[float]]:
+    def __call__(self, texts: list[str]) -> list[list[float]]:
         with events.timed("embed.call", backend=self.name, n=len(texts)):
             return self.lc.embed_documents(list(texts))
 
-    def query(self, text: str) -> List[float]:
+    def query(self, text: str) -> list[float]:
         with events.timed("embed.call", backend=self.name, n=1):
             return self.lc.embed_query(text)
 
@@ -118,10 +119,10 @@ class ChunkingTextSplitter(TextSplitter):
         """Return this package's `Chunk` objects (text + offsets + metadata)."""
         return run_chunker(self.chunker, text, self.overlap_tokens)
 
-    def split_text(self, text: str) -> List[str]:
+    def split_text(self, text: str) -> list[str]:
         return [c.text for c in self.split_chunks(text)]
 
-    def create_documents(self, texts: List[str], metadatas: Optional[List[dict]] = None) -> List[Document]:
+    def create_documents(self, texts: list[str], metadatas: list[dict] | None = None) -> list[Document]:
         metadatas = metadatas or [{}] * len(texts)
         docs = []
         for text, base in zip(texts, metadatas):
@@ -136,7 +137,7 @@ class ChunkingTextSplitter(TextSplitter):
                 docs.append(Document(page_content=c.text, metadata=md))
         return docs
 
-    def split_documents(self, documents: Iterable[Document]) -> List[Document]:
+    def split_documents(self, documents: Iterable[Document]) -> list[Document]:
         documents = list(documents)
         return self.create_documents([d.page_content for d in documents], [d.metadata for d in documents])
 
@@ -150,8 +151,8 @@ class ChunkingEmbeddings(Embeddings):
     def __init__(self, embedder: Any = "auto", cache: bool = False, **kwargs: Any):
         self.embedder = get_embedder(embedder, cache=cache, **kwargs) if isinstance(embedder, str) else embedder
 
-    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
         return self.embedder(list(texts))
 
-    def embed_query(self, text: str) -> List[float]:
+    def embed_query(self, text: str) -> list[float]:
         return embed_query(self.embedder, text)

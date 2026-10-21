@@ -2,7 +2,8 @@
 
 [![CI](https://github.com/patlar104/rag-chunking/actions/workflows/ci.yml/badge.svg)](https://github.com/patlar104/rag-chunking/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/patlar104/rag-chunking/actions/workflows/codeql.yml/badge.svg)](https://github.com/patlar104/rag-chunking/actions/workflows/codeql.yml)
-[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue)](pyproject.toml)
+[![Python 3.13+](https://img.shields.io/badge/python-3.13%2B-blue)](#choosing-a-python-version)
+[![Recommended: 3.15](https://img.shields.io/badge/recommended-3.15-brightgreen)](#choosing-a-python-version)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Live demo](https://img.shields.io/badge/demo-rag--chunking.pplx.app-6366f1)](https://rag-chunking.pplx.app)
 
@@ -10,7 +11,7 @@ A working implementation of **"The 6 Production Chunking Algorithms for RAG (Par
 
 The reel's thesis: *chunking is where 80% of RAG pipelines fail.* Chunks that are too small lose context; chunks that are too large dilute the embedding. This repo builds every idea from the video so you can run it, compare the results and plug it into your own pipeline.
 
-Pure Python 3.9+, **zero required dependencies**. Everything runs offline out of the box. Real embedding models (Ollama, sentence-transformers, DeepInfra, OpenAI) and local LLMs through Ollama plug in with one flag. There are LangChain and LlamaIndex integrations, plus a live web dashboard for health and stability.
+Pure Python 3.13+ (3.15 recommended), **zero required dependencies**. Everything runs offline out of the box. Real embedding models (Ollama, sentence-transformers, DeepInfra, OpenAI) and local LLMs through Ollama plug in with one flag. There are LangChain and LlamaIndex integrations, plus a live web dashboard for health and stability.
 
 **Live demo:** [rag-chunking.pplx.app](https://rag-chunking.pplx.app) runs the Chunk Monitor dashboard in offline mode (hashing embedder + rule-based heuristics). Run it locally with Ollama or DeepInfra for real models.
 
@@ -31,14 +32,37 @@ Pure Python 3.9+, **zero required dependencies**. Everything runs offline out of
 
 ## Setup
 
-You need **Python 3.9 or newer** (3.10+ for the LangChain and LlamaIndex extras) and git. Check with `python3 --version`.
+You need **Python 3.13 or newer** (3.15 recommended) and git. Check with `python3 --version`.
+
+### Choosing a Python version
+
+| Version | Status here | Upstream support | Notes |
+|---|---|---|---|
+| **3.15** | **recommended**, tested in CI | bugfix releases until 2031-10 | newest stable release (3.15.0, Oct 9 2026) |
+| 3.14 | supported, tested in CI | bugfix releases until 2030-10 | safest choice if a third-party extra hasn't shipped 3.15 wheels yet |
+| 3.13 | minimum, tested in CI | security fixes only, until 2029-10 | |
+| 3.12 and older | not supported | | `import chunking` stops with a clear error; pip refuses to install |
+
+Newer versions after 3.15 should work too (there's no upper bound). The weekly CI run tests the newest releases. Upstream dates come from the [Python devguide](https://devguide.python.org/versions/).
+
+**Ways to get Python 3.15:**
+
+| Tool | Command |
+|---|---|
+| [uv](https://docs.astral.sh/uv/) (any OS, fastest) | `uv python install 3.15`, then `uv venv -p 3.15` |
+| [python.org installer](https://www.python.org/downloads/) | download 3.15, then use `python3.15` (macOS/Linux) or `py -3.15` (Windows) |
+| pyenv | `pyenv install 3.15 && pyenv local 3.15` |
+| Homebrew (macOS) | `brew install python@3.15` |
+| winget (Windows) | `winget install Python.Python.3.15` |
+
+The repo has a `.python-version` file set to `3.15`, so `uv`, `pyenv` and most editors pick it up automatically.
 
 ### 1. Clone and create a virtual environment
 
 ```bash
 git clone https://github.com/patlar104/rag-chunking.git
 cd rag-chunking
-python3 -m venv .venv
+python3.15 -m venv .venv           # or: uv venv -p 3.15   ·   Windows: py -3.15 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 python -m pip install --upgrade pip
 ```
@@ -52,7 +76,7 @@ The core library has **no dependencies**: `python demo.py` works right after clo
 | `pip install -e .` | the `chunking` package importable from anywhere (still zero dependencies) |
 | `pip install -e ".[webui]"` | the Chunk Monitor dashboard (FastAPI + uvicorn) |
 | `pip install -e ".[langchain]"` | `ChunkingTextSplitter` and `ChunkingEmbeddings` for LangChain |
-| `pip install -e ".[llamaindex]"` | `ChunkingNodeParser` and `ChunkingEmbedding` for LlamaIndex (Python 3.10+) |
+| `pip install -e ".[llamaindex]"` | `ChunkingNodeParser` and `ChunkingEmbedding` for LlamaIndex |
 | `pip install -e ".[st]"` | local sentence-transformers embeddings (pulls in PyTorch, ~1 GB) |
 | `pip install -e ".[openai]"` | OpenAI or any OpenAI-compatible server |
 | `pip install -e ".[dev]"` | everything the test suite and linter use |
@@ -100,6 +124,8 @@ CHUNKING_LIVE_DEEPINFRA=1 python -m unittest tests.test_deepinfra   # also hit t
 | `model 'x' not found, try pulling it` | `ollama pull x`, or add `--pull` to `demo.py` |
 | `DeepInfra HTTP 401` | `DEEPINFRA_API_KEY` is missing or wrong |
 | `ModuleNotFoundError: fastapi` | `pip install -e ".[webui]"` |
+| `rag-chunking needs Python 3.13 or newer` | create the venv with a newer interpreter (see [Choosing a Python version](#choosing-a-python-version)) |
+| An extra fails to build on the newest Python | a dependency hasn't published wheels for it yet; use 3.14 for that venv |
 | Agentic chunking never splits prose | the LLM is too small; use a 3B+ model (`llama3.2:3b`, or `deepinfra`'s Qwen2.5-7B) |
 | Slow second runs | they shouldn't be: embeddings are cached in `~/.cache/rag-chunking/` (move it with `CHUNKING_CACHE_DIR`) |
 
@@ -386,16 +412,41 @@ GitHub Actions runs on every push and pull request, and weekly to catch breakage
 
 | Workflow | What it does |
 |---|---|
-| [CI](.github/workflows/ci.yml) | `ruff` lint and a JS syntax check · core tests with zero dependencies on Python 3.9–3.14 (Linux) plus macOS and Windows · the full suite with LangChain, LlamaIndex and FastAPI on 3.10 and 3.14 · a smoke test that boots the dashboard in `--public` mode and completes a run · builds the wheel and checks it installs with the dashboard files |
+| [CI](.github/workflows/ci.yml) | `ruff` lint, a JS syntax check and a changelog-entry check · core tests with zero dependencies on Python 3.13, 3.14 and 3.15 (Linux) plus 3.15 on macOS and Windows · the full suite with LangChain, LlamaIndex and FastAPI on 3.13–3.15 · a check that Python 3.12 gets the clear version error · a smoke test that boots the dashboard in `--public` mode and completes a run · builds the wheel and checks it installs with the dashboard files |
 | [CodeQL](.github/workflows/codeql.yml) | security scanning for the Python, JavaScript and workflow code |
-| [Release](.github/workflows/release.yml) | push a tag like `v0.4.0` (matching `pyproject.toml`) to test, build, and publish a GitHub Release with the wheel and sdist |
+| [Release](.github/workflows/release.yml) | push a tag like `v0.5.0` (matching `pyproject.toml`) to test, build, and publish a GitHub Release with the wheel, the sdist, and that version's notes from [CHANGELOG.md](CHANGELOG.md) |
 | [Dependabot](.github/dependabot.yml) | weekly grouped PRs for GitHub Actions and Python dependency updates |
 
-To cut a release: bump `version` in `pyproject.toml`, commit, then `git tag v0.4.1 && git push origin v0.4.1`.
+To cut a release: move the **Unreleased** notes in [CHANGELOG.md](CHANGELOG.md) under a new version heading, bump `version` in `pyproject.toml` to match, commit, then `git tag v0.5.1 && git push origin v0.5.1`.
 
 ## Contributing
 
-Fork, create a branch, and open a pull request. Before pushing, run `ruff check .` and `python -m unittest discover -s tests`; CI runs the same checks. New chunkers go in `chunking/`, get registered in `STRATEGIES` (`chunking/__init__.py`), and need a test in `tests/test_chunkers.py`.
+Fork, create a branch, and open a pull request. Before pushing, run `ruff check .` and `python -m unittest discover -s tests` on Python 3.13+; CI runs the same checks. Add a line under **Unreleased** in [CHANGELOG.md](CHANGELOG.md) describing your change. New chunkers go in `chunking/`, get registered in `STRATEGIES` (`chunking/__init__.py`), and need a test in `tests/test_chunkers.py`.
+
+## Contributors
+
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/patlar104"><img src="https://github.com/patlar104.png?size=120" width="80" alt="patlar104"><br><sub><b>Patrick Larocque</b></sub></a><br>
+      <sub>creator &amp; maintainer</sub>
+    </td>
+  </tr>
+</table>
+
+Everyone who has contributed code (updated automatically):
+
+<a href="https://github.com/patlar104/rag-chunking/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=patlar104/rag-chunking" alt="Contributors">
+</a>
+
+**Acknowledgements:** the strategies and framing come from [@aiunpacked.explains](https://www.instagram.com/reel/DcD9jzKFH7z/)'s reel "The 6 Production Chunking Algorithms for RAG". The Python ecosystem pieces are [Ollama](https://ollama.com), [LangChain](https://github.com/langchain-ai/langchain), [LlamaIndex](https://github.com/run-llama/llama_index), [FastAPI](https://fastapi.tiangolo.com) and [sentence-transformers](https://www.sbert.net).
+
+Want to be listed? Open a pull request (see [Contributing](#contributing)). Merged contributors show up in the graph above automatically.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for every release and what changed.
 
 ## Layout
 
@@ -426,6 +477,8 @@ tests/              75 unittest tests: chunkers, backends (fake Ollama/DeepInfra
                     web UI, public-mode protections, demo CLI
 .github/            CI, CodeQL, release workflows and Dependabot config
 pyproject.toml      package metadata, optional extras, ruff config
+CHANGELOG.md        release history (Keep a Changelog format)
+.python-version     recommended interpreter (3.15)
 ```
 
 Token counts use a simple word/punctuation tokenizer. For exact model token counts, pass a `length_fn` (for example one built on `tiktoken`) to `RecursiveChunker` or `MarkdownChunker`.

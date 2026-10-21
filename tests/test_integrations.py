@@ -36,7 +36,7 @@ except ImportError:
 try:
     import llama_index.core  # noqa: F401
     HAVE_LI = True
-except Exception:  # ImportError, or old llama-index releases that crash on import (Python 3.9)
+except ImportError:
     HAVE_LI = False
 
 

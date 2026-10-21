@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import List
 
 from .base import Chunk, LengthFn, count_tokens, strip_span
 from .recursive import RecursiveChunker
@@ -41,8 +40,8 @@ class MarkdownChunker:
         self._prose = RecursiveChunker(max_tokens, length_fn=length_fn)
 
     # -- parsing ---------------------------------------------------------
-    def parse(self, text: str) -> List[Block]:
-        blocks: List[Block] = []
+    def parse(self, text: str) -> list[Block]:
+        blocks: list[Block] = []
         lines = text.splitlines(keepends=True)
         offsets, pos = [], 0
         for ln in lines:
@@ -82,10 +81,10 @@ class MarkdownChunker:
         return blocks
 
     # -- chunking --------------------------------------------------------
-    def split(self, text: str) -> List[Chunk]:
-        chunks: List[Chunk] = []
-        path: List[tuple] = []  # stack of (level, title)
-        group: List[Block] = []
+    def split(self, text: str) -> list[Chunk]:
+        chunks: list[Chunk] = []
+        path: list[tuple] = []  # stack of (level, title)
+        group: list[Block] = []
 
         def flush():
             if not group:
@@ -114,7 +113,7 @@ class MarkdownChunker:
         flush()
         return chunks
 
-    def _pack(self, text: str, blocks: List[Block]):
+    def _pack(self, text: str, blocks: list[Block]):
         """Greedily pack whole blocks into pieces of <= max_tokens."""
         pieces, cur = [], []
 

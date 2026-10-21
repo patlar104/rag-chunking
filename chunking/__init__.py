@@ -5,6 +5,14 @@
     chunks = get_chunker("semantic", embed=get_embedder("ollama:nomic-embed-text")).split(text)
     chunks = get_chunker("agentic", llm=get_llm("ollama:llama3.2:3b")).split(text)
 """
+import sys
+
+if sys.version_info < (3, 13):  # noqa: UP036 -- fail fast with a clear message instead of a confusing SyntaxError/TypeError
+    raise ImportError(
+        f"rag-chunking needs Python 3.13 or newer (3.15 recommended); this is Python {sys.version.split()[0]}. "
+        "See the Setup section of the README."
+    )
+
 from .agentic import AgenticChunker
 from .base import Chunk, count_tokens, sentence_spans, with_overlap
 from .document import MarkdownChunker

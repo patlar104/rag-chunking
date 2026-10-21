@@ -1,8 +1,6 @@
 """Strategy 04: semantic chunking (cut when embedding distance spikes)."""
 from __future__ import annotations
 
-from typing import List, Optional
-
 from . import events
 from .base import Chunk, attach_headings, count_tokens, sentence_spans
 from .embeddings import Embedder, HashingEmbedder, cosine
@@ -20,7 +18,7 @@ class SemanticChunker:
         min_sentences / max_tokens: guard rails so chunks are never absurd.
     """
 
-    def __init__(self, embed: Optional[Embedder] = None, breakpoint_percentile: float = 80,
+    def __init__(self, embed: Embedder | None = None, breakpoint_percentile: float = 80,
                  buffer: int = 2, min_sentences: int = 2, max_tokens: int = 400):
         self.embed = embed or HashingEmbedder()
         self.pct = breakpoint_percentile
@@ -28,7 +26,7 @@ class SemanticChunker:
         self.min_sentences = min_sentences
         self.max_tokens = max_tokens
 
-    def distances(self, sentences: List[str]) -> List[float]:
+    def distances(self, sentences: list[str]) -> list[float]:
         """Distance at each gap i|i+1, comparing `buffer` sentences on the left
         with `buffer` sentences on the right (non-overlapping windows, like
         TextTiling). buffer=0 compares single sentences."""
@@ -39,7 +37,7 @@ class SemanticChunker:
         n = len(left)
         return [1 - cosine(vecs[i], vecs[n + i]) for i in range(n)]
 
-    def split(self, text: str) -> List[Chunk]:
+    def split(self, text: str) -> list[Chunk]:
         spans = attach_headings(text, sentence_spans(text))
         if len(spans) < 2:
             return [Chunk(text.strip(), *spans[0], {"strategy": "semantic"})] if spans else []
@@ -68,7 +66,7 @@ class SemanticChunker:
         return chunks
 
 
-def _percentile(values: List[float], pct: float) -> float:
+def _percentile(values: list[float], pct: float) -> float:
     s = sorted(values)
     k = (len(s) - 1) * pct / 100
     lo, hi = int(k), min(int(k) + 1, len(s) - 1)
