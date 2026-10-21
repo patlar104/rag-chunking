@@ -4,7 +4,9 @@ A working implementation of **"The 6 Production Chunking Algorithms for RAG (Par
 
 The reel's thesis: *chunking is where 80% of RAG pipelines fail.* Chunks that are too small lose context; chunks that are too large dilute the embedding. This repo builds every idea from the video so you can run it, compare the results and plug it into your own pipeline.
 
-Pure Python 3.9+, **zero required dependencies**. Everything runs offline out of the box. Real embedding models (Ollama, sentence-transformers, OpenAI) and local LLMs through Ollama plug in with one flag. There are LangChain and LlamaIndex integrations, plus a live web dashboard for health and stability.
+Pure Python 3.9+, **zero required dependencies**. Everything runs offline out of the box. Real embedding models (Ollama, sentence-transformers, DeepInfra, OpenAI) and local LLMs through Ollama plug in with one flag. There are LangChain and LlamaIndex integrations, plus a live web dashboard for health and stability.
+
+**Live demo:** [rag-chunking.pplx.app](https://rag-chunking.pplx.app) runs the Chunk Monitor dashboard in offline mode (hashing embedder + rule-based heuristics). Run it locally with Ollama or DeepInfra for real models.
 
 ## What's in the reel → where it lives
 
