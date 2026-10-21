@@ -24,7 +24,7 @@ CHUNKING_LIVE_OLLAMA=1 python -m unittest tests.test_backends        # opt-in li
 CHUNKING_LIVE_DEEPINFRA=1 python -m unittest tests.test_deepinfra
 ```
 
-CI runs the core tests with zero dependencies on Python 3.9–3.14 (plus macOS/Windows), so code in `chunking/` must stay 3.9-compatible (`from __future__ import annotations`; ruff targets `py39`, line length 120). The integration tests run with `-W error::ResourceWarning`, so close sockets/files. Set `CHUNKING_CACHE_DIR` to a temp dir when testing so the SQLite embedding cache doesn't touch `~/.cache/rag-chunking/`. Releases are cut by pushing a `vX.Y.Z` tag matching `pyproject.toml`'s `version`.
+The owner's target is **Python 3.13 or newer (3.15 recommended)**; do not add 3.9-compat shims. The repo's own config has not caught up yet: `pyproject.toml` still says `requires-python = ">=3.9"` and ruff `target-version = "py39"`, CI tests 3.9–3.14, and the README says 3.9+. Until those are updated, ruff's `UP` rules enforce the old target, and the interpreter on this machine's PATH is 3.9.6, so tests run there are not 3.13 results. Core tests run with zero dependencies (line length 120). The integration tests run with `-W error::ResourceWarning`, so close sockets/files. Set `CHUNKING_CACHE_DIR` to a temp dir when testing so the SQLite embedding cache doesn't touch `~/.cache/rag-chunking/`. Releases are cut by pushing a `vX.Y.Z` tag matching `pyproject.toml`'s `version`.
 
 ## Architecture
 
