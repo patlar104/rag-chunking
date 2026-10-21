@@ -42,7 +42,7 @@ class MonitorPieces(unittest.TestCase):
         from webui.monitor import Metrics
         m = Metrics()
         now = time.time()
-        for i, ms in enumerate([10, 20, 30, 40, 1000]):
+        for ms in [10, 20, 30, 40, 1000]:
             m.record({"type": "llm.call", "ts": now, "run": "r1", "backend": "x", "ms": ms, "ok": True})
         m.record({"type": "llm.call", "ts": now, "run": "r1", "backend": "x", "ms": 5, "ok": False, "error": "boom"})
         m.record({"type": "llm.retry", "ts": now, "run": "r1"})
@@ -87,6 +87,7 @@ class Api(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         from fastapi.testclient import TestClient
+
         from webui import server
         cls.server = server
         cls.cm = TestClient(server.app)

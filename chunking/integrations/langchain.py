@@ -33,8 +33,7 @@ except ImportError as e:  # pragma: no cover
 
 from .. import events
 from ..embeddings import embed_query, get_embedder
-from ._common import (build_chunker, chunk_metadata, model_label, reply_text, resolve_embedder,
-                      resolve_llm, run_chunker)
+from ._common import build_chunker, chunk_metadata, model_label, reply_text, resolve_embedder, resolve_llm, run_chunker
 
 __all__ = ["ChunkingTextSplitter", "ChunkingEmbeddings", "LangChainEmbedder", "LangChainLLM"]
 

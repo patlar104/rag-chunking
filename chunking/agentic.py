@@ -8,13 +8,12 @@ The reel's three steps, per incoming sentence:
 from __future__ import annotations
 
 import re
+import time
 from collections import Counter
 from typing import List, Optional
 
-from .base import Chunk, attach_headings, count_tokens, sentence_spans
-import time
-
 from . import events
+from .base import Chunk, attach_headings, count_tokens, sentence_spans
 from .llm import LLM, ask_json
 
 PROMPT = """You are a boundary inspector for a document chunker.

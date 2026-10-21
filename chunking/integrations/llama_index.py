@@ -23,7 +23,7 @@ Or use this package's embedders inside LlamaIndex:
 """
 from __future__ import annotations
 
-from typing import Any, List, Optional, Sequence
+from typing import Any, List, Sequence
 
 try:
     from llama_index.core.base.embeddings.base import BaseEmbedding
@@ -37,8 +37,16 @@ except ImportError as e:  # pragma: no cover
 
 from .. import events
 from ..embeddings import embed_query, get_embedder
-from ._common import (NON_EMBED_KEYS, build_chunker, chunk_metadata, model_label, reply_text,
-                      resolve_embedder, resolve_llm, run_chunker)
+from ._common import (
+    NON_EMBED_KEYS,
+    build_chunker,
+    chunk_metadata,
+    model_label,
+    reply_text,
+    resolve_embedder,
+    resolve_llm,
+    run_chunker,
+)
 
 __all__ = ["ChunkingNodeParser", "ChunkingEmbedding", "LlamaIndexEmbedder", "LlamaIndexLLM"]
 

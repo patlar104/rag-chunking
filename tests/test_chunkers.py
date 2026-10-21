@@ -6,9 +6,18 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from chunking import (AgenticChunker, FixedSizeChunker, MarkdownChunker, PropositionalChunker,  # noqa: E402
-                      RecursiveChunker, SemanticChunker, chunk_stats, count_tokens, get_chunker,
-                      with_overlap)
+from chunking import (  # noqa: E402
+    AgenticChunker,
+    FixedSizeChunker,
+    MarkdownChunker,
+    PropositionalChunker,
+    RecursiveChunker,
+    SemanticChunker,
+    chunk_stats,
+    count_tokens,
+    get_chunker,
+    with_overlap,
+)
 from chunking.llm import parse_json  # noqa: E402
 
 SAMPLE = (Path(__file__).resolve().parents[1] / "sample.md").read_text()

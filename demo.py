@@ -23,8 +23,7 @@ import textwrap
 import time
 from pathlib import Path
 
-from chunking import STRATEGIES, chunk_stats, get_chunker, with_overlap
-from chunking import ollama
+from chunking import STRATEGIES, chunk_stats, get_chunker, ollama, with_overlap
 from chunking.embeddings import cosine, embed_query, get_embedder
 from chunking.llm import get_llm
 

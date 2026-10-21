@@ -9,8 +9,8 @@ from .agentic import AgenticChunker
 from .base import Chunk, count_tokens, sentence_spans, with_overlap
 from .document import MarkdownChunker
 from .embeddings import get_embedder
-from .llm import get_llm
 from .fixed import FixedSizeChunker
+from .llm import get_llm
 from .propositional import PropositionalChunker
 from .recursive import RecursiveChunker
 from .semantic import SemanticChunker

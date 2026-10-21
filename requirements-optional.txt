@@ -1,4 +1,4 @@
-# Optional extras. The core package and Ollama support need nothing beyond the standard library.
+# Optional extras (same as the pyproject.toml extras: pip install -e ".[all]" or ".[dev]"). The core needs only the standard library.
 sentence-transformers     # --embed st[:model]
 openai                    # --embed openai / --llm openai (or any OpenAI-compatible server)
 langchain-core            # chunking.integrations.langchain

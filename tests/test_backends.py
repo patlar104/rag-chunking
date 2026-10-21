@@ -14,8 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from chunking import AgenticChunker, PropositionalChunker, SemanticChunker, ollama  # noqa: E402
-from chunking.embeddings import (CachedEmbedder, HashingEmbedder, OllamaEmbedder,  # noqa: E402
-                                 embed_query, get_embedder)
+from chunking.embeddings import CachedEmbedder, HashingEmbedder, OllamaEmbedder, embed_query, get_embedder  # noqa: E402
 from chunking.llm import OllamaLLM, ask_json, get_llm  # noqa: E402
 
 PROSE = ("Cats are small mammals. They sleep for most of the day. Cats groom themselves often. "

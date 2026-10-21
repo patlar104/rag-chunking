@@ -4,8 +4,8 @@ from __future__ import annotations
 import re
 from typing import List, Optional
 
-from .base import Chunk, sentence_spans
 from . import events
+from .base import Chunk, sentence_spans
 from .llm import LLM, ask_json
 
 PROMPT = """Decompose the passage into atomic propositions.

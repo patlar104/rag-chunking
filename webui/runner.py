@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 import itertools
-import secrets
 import queue
+import secrets
 import threading
 import time
 import traceback
@@ -74,7 +74,7 @@ class Runner:
 
     def __init__(self, publish: Callable[[str, Dict], None]):
         self.publish = publish
-        self.queue: "queue.Queue[str]" = queue.Queue()
+        self.queue: queue.Queue[str] = queue.Queue()
         self.runs: Dict[str, Dict] = {}
         self.order: List[str] = []
         self.ids = itertools.count(1)

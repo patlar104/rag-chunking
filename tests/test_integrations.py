@@ -36,7 +36,7 @@ except ImportError:
 try:
     import llama_index.core  # noqa: F401
     HAVE_LI = True
-except ImportError:
+except Exception:  # ImportError, or old llama-index releases that crash on import (Python 3.9)
     HAVE_LI = False
 
 
@@ -46,6 +46,7 @@ class LangChainTests(unittest.TestCase):
         from langchain_core.documents import Document
         from langchain_core.embeddings import Embeddings
         from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
+
         from chunking.integrations.langchain import ChunkingEmbeddings, ChunkingTextSplitter
         self.Document, self.Splitter, self.CE = Document, ChunkingTextSplitter, ChunkingEmbeddings
 
@@ -116,6 +117,7 @@ class LlamaIndexTests(unittest.TestCase):
         from llama_index.core.base.embeddings.base import BaseEmbedding
         from llama_index.core.llms import CompletionResponse
         from llama_index.core.llms.mock import MockLLM
+
         from chunking.integrations.llama_index import ChunkingEmbedding, ChunkingNodeParser
         self.Document, self.Parser, self.CE = Document, ChunkingNodeParser, ChunkingEmbedding
 

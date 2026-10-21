@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from .base import Chunk, attach_headings, count_tokens, sentence_spans
 from . import events
+from .base import Chunk, attach_headings, count_tokens, sentence_spans
 from .embeddings import Embedder, HashingEmbedder, cosine
 
 

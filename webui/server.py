@@ -227,7 +227,7 @@ def update_settings(body: SettingsIn):
         if body.llm not in ("none", "auto"):
             get_llm(body.llm)
     except Exception as e:
-        raise HTTPException(400, str(e).splitlines()[0])
+        raise HTTPException(400, str(e).splitlines()[0]) from None
     settings.update(embed=body.embed, llm=body.llm)
     monitor.configure(body.embed, body.llm)
     hub.publish("settings", settings)
@@ -269,7 +269,7 @@ def create_run(body: RunIn):
                             settings["embed"], settings["llm"], body.stability)
         return out | {"cancel_token": runner.runs[out["id"]]["cancel_token"]}
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise HTTPException(400, str(e)) from None
 
 
 @app.get("/api/runs")

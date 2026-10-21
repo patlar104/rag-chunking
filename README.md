@@ -1,5 +1,11 @@
 # rag-chunking
 
+[![CI](https://github.com/patlar104/rag-chunking/actions/workflows/ci.yml/badge.svg)](https://github.com/patlar104/rag-chunking/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/patlar104/rag-chunking/actions/workflows/codeql.yml/badge.svg)](https://github.com/patlar104/rag-chunking/actions/workflows/codeql.yml)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue)](pyproject.toml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Live demo](https://img.shields.io/badge/demo-rag--chunking.pplx.app-6366f1)](https://rag-chunking.pplx.app)
+
 A working implementation of **"The 6 Production Chunking Algorithms for RAG (Part 2/7)"** by [@aiunpacked.explains](https://www.instagram.com/reel/DcD9jzKFH7z/).
 
 The reel's thesis: *chunking is where 80% of RAG pipelines fail.* Chunks that are too small lose context; chunks that are too large dilute the embedding. This repo builds every idea from the video so you can run it, compare the results and plug it into your own pipeline.
@@ -23,6 +29,80 @@ Pure Python 3.9+, **zero required dependencies**. Everything runs offline out of
 | 06 Agentic: a small model inspects context and places the boundary (inspect → contextualize → boundary) | | `chunking/agentic.py` |
 | The rule: pick the strategy that fits your data structure | | `python demo.py --compare` |
 
+## Setup
+
+You need **Python 3.9 or newer** (3.10+ for the LangChain and LlamaIndex extras) and git. Check with `python3 --version`.
+
+### 1. Clone and create a virtual environment
+
+```bash
+git clone https://github.com/patlar104/rag-chunking.git
+cd rag-chunking
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+python -m pip install --upgrade pip
+```
+
+### 2. Install what you need
+
+The core library has **no dependencies**: `python demo.py` works right after cloning. Install extras only for the features you want:
+
+| Command | Adds |
+|---|---|
+| `pip install -e .` | the `chunking` package importable from anywhere (still zero dependencies) |
+| `pip install -e ".[webui]"` | the Chunk Monitor dashboard (FastAPI + uvicorn) |
+| `pip install -e ".[langchain]"` | `ChunkingTextSplitter` and `ChunkingEmbeddings` for LangChain |
+| `pip install -e ".[llamaindex]"` | `ChunkingNodeParser` and `ChunkingEmbedding` for LlamaIndex (Python 3.10+) |
+| `pip install -e ".[st]"` | local sentence-transformers embeddings (pulls in PyTorch, ~1 GB) |
+| `pip install -e ".[openai]"` | OpenAI or any OpenAI-compatible server |
+| `pip install -e ".[dev]"` | everything the test suite and linter use |
+| `pip install -e ".[all]"` | all of the above except dev tools |
+
+Ollama and DeepInfra need no Python packages; their clients use the standard library.
+
+### 3. Pick a model backend (optional)
+
+Everything runs offline with a toy hashing embedder and rule-based heuristics. For real results, choose one:
+
+- **Ollama (local, free):** install from [ollama.com/download](https://ollama.com/download), then
+  ```bash
+  ollama pull nomic-embed-text        # embeddings, 274 MB
+  ollama pull llama3.2:3b             # LLM for agentic/propositional, 2 GB (qwen2.5:1.5b if you're short on RAM)
+  python demo.py --doctor             # confirms what's detected
+  ```
+- **DeepInfra (hosted, no GPU):** create a key at [deepinfra.com/dash/api_keys](https://deepinfra.com/dash/api_keys), then `export DEEPINFRA_API_KEY=...` (PowerShell: `$env:DEEPINFRA_API_KEY="..."`).
+- **OpenAI:** `pip install -e ".[openai]"` and `export OPENAI_API_KEY=...`.
+
+### 4. Run it
+
+```bash
+python demo.py --compare                                                   # offline
+python demo.py --embed ollama:nomic-embed-text --llm ollama:llama3.2:3b     # Ollama
+python demo.py --embed deepinfra --llm deepinfra                            # DeepInfra
+python -m webui.server --embed ollama:nomic-embed-text --llm ollama:llama3.2:3b   # dashboard on http://localhost:8000
+```
+
+### 5. Run the tests
+
+```bash
+python -m unittest discover -s tests          # 75 tests; integration tests skip if their extras aren't installed
+pip install -e ".[dev]" && python -m unittest discover -s tests -v   # the full suite, like CI
+ruff check .                                  # lint
+CHUNKING_LIVE_OLLAMA=1 python -m unittest tests.test_backends       # also hit a real Ollama server
+CHUNKING_LIVE_DEEPINFRA=1 python -m unittest tests.test_deepinfra   # also hit the real DeepInfra API
+```
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `Can't reach Ollama at http://localhost:11434` | start it with `ollama serve` (or open the Ollama app), or set `OLLAMA_HOST` |
+| `model 'x' not found, try pulling it` | `ollama pull x`, or add `--pull` to `demo.py` |
+| `DeepInfra HTTP 401` | `DEEPINFRA_API_KEY` is missing or wrong |
+| `ModuleNotFoundError: fastapi` | `pip install -e ".[webui]"` |
+| Agentic chunking never splits prose | the LLM is too small; use a 3B+ model (`llama3.2:3b`, or `deepinfra`'s Qwen2.5-7B) |
+| Slow second runs | they shouldn't be: embeddings are cached in `~/.cache/rag-chunking/` (move it with `CHUNKING_CACHE_DIR`) |
+
 ## Quick start
 
 ```bash
@@ -33,7 +113,7 @@ python demo.py -q "What is the spending cap per team for the offsite?"   # best 
 python demo.py my_notes.md -s document              # your own file
 python demo.py --doctor                             # which real models are available
 python demo.py --embed auto --llm auto              # use real local models if installed
-python -m unittest discover -s tests                # 38 tests, no network needed
+python -m unittest discover -s tests                # 75 tests, no network needed
 ```
 
 Sample output of `--compare` on `sample.md`:
@@ -300,6 +380,23 @@ unsubscribe = events.subscribe(print)
 
 Measure on your own questions before you decide. `python demo.py -q "..."` shows which strategy returns the best chunk.
 
+## Continuous integration
+
+GitHub Actions runs on every push and pull request, and weekly to catch breakage from new upstream releases:
+
+| Workflow | What it does |
+|---|---|
+| [CI](.github/workflows/ci.yml) | `ruff` lint and a JS syntax check · core tests with zero dependencies on Python 3.9–3.14 (Linux) plus macOS and Windows · the full suite with LangChain, LlamaIndex and FastAPI on 3.10 and 3.14 · a smoke test that boots the dashboard in `--public` mode and completes a run · builds the wheel and checks it installs with the dashboard files |
+| [CodeQL](.github/workflows/codeql.yml) | security scanning for the Python, JavaScript and workflow code |
+| [Release](.github/workflows/release.yml) | push a tag like `v0.4.0` (matching `pyproject.toml`) to test, build, and publish a GitHub Release with the wheel and sdist |
+| [Dependabot](.github/dependabot.yml) | weekly grouped PRs for GitHub Actions and Python dependency updates |
+
+To cut a release: bump `version` in `pyproject.toml`, commit, then `git tag v0.4.1 && git push origin v0.4.1`.
+
+## Contributing
+
+Fork, create a branch, and open a pull request. Before pushing, run `ruff check .` and `python -m unittest discover -s tests`; CI runs the same checks. New chunkers go in `chunking/`, get registered in `STRATEGIES` (`chunking/__init__.py`), and need a test in `tests/test_chunkers.py`.
+
 ## Layout
 
 ```
@@ -325,8 +422,14 @@ webui/
   static/           index.html, app.js, style.css (no build step)
 demo.py             CLI to run and compare everything
 sample.md           demo document (Markdown, a table, code, and a topic shift)
-tests/              63 unittest tests: chunkers, backends (fake Ollama/DeepInfra servers), integrations, web UI
-                    CHUNKING_LIVE_OLLAMA=1 python -m unittest tests.test_backends  # live check
+tests/              75 unittest tests: chunkers, backends (fake Ollama/DeepInfra servers), integrations,
+                    web UI, public-mode protections, demo CLI
+.github/            CI, CodeQL, release workflows and Dependabot config
+pyproject.toml      package metadata, optional extras, ruff config
 ```
 
 Token counts use a simple word/punctuation tokenizer. For exact model token counts, pass a `length_fn` (for example one built on `tiktoken`) to `RecursiveChunker` or `MarkdownChunker`.
+
+## License
+
+[MIT](LICENSE) © 2026 Patrick Larocque
