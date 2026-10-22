@@ -21,8 +21,8 @@ fi
 
 if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
   {
-    echo "export VIRTUAL_ENV=\"$PWD/.venv\""
-    echo "export PATH=\"$PWD/.venv/bin:\$PATH\""
+    printf 'export VIRTUAL_ENV=%q\n' "$PWD/.venv"
+    printf 'export PATH=%q:"$PATH"\n' "$PWD/.venv/bin"
     echo 'export CHUNKING_CACHE_DIR=/tmp/chunk-cache'
   } >> "$CLAUDE_ENV_FILE"
 fi
