@@ -1,0 +1,42 @@
+name: Repo metadata
+
+# Keeps the issue labels (.github/labels.yml) and release milestones in sync with the repo.
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/labels.yml
+      - .github/workflows/repo-metadata.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: repo-metadata
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync labels and milestones
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: EndBug/label-sync@v2
+        with:
+          config-file: .github/labels.yml
+          delete-other-labels: false
+      - name: Ensure milestones exist
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          existing=$(gh api --paginate "repos/$GITHUB_REPOSITORY/milestones?state=all" --jq '.[].title')
+          while IFS='|' read -r title description; do
+            if grep -qxF "$title" <<<"$existing"; then continue; fi
+            gh api "repos/$GITHUB_REPOSITORY/milestones" -f title="$title" -f description="$description" >/dev/null
+            echo "created milestone $title"
+          done <<'LIST'
+          v0.5.1|Bug fixes and small improvements on 0.5
+          v0.6.0|Next minor release (0.x minors may include breaking changes)
+          LIST

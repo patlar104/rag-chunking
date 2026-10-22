@@ -1,0 +1,26 @@
+# Synced to the repository by .github/workflows/repo-metadata.yml on push to main.
+# Labels not listed here are left alone (delete-other-labels is off).
+
+# Type (the first four are GitHub's defaults, kept so existing issues stay labelled)
+- { name: bug, color: d73a4a, description: Something isn't working }
+- { name: enhancement, color: a2eeef, description: New feature or request }
+- { name: documentation, color: 0075ca, description: Improvements or additions to documentation }
+- { name: question, color: d876e3, description: Further information is requested }
+
+# Area
+- { name: "area: chunking", color: 1d76db, description: Chunking strategies in chunking/ }
+- { name: "area: backends", color: 1d76db, description: Embedding and LLM backends (Ollama, DeepInfra, OpenAI, st) }
+- { name: "area: webui", color: 1d76db, description: Chunk Monitor dashboard, runner and public mode }
+- { name: "area: integrations", color: 1d76db, description: LangChain and LlamaIndex adapters }
+- { name: "area: ci", color: 1d76db, description: Workflows, release and developer tooling }
+
+# Status
+- { name: needs-triage, color: fbca04, description: Not reviewed yet }
+- { name: blocked, color: b60205, description: Waiting on something else }
+- { name: good first issue, color: 7057ff, description: Good for newcomers }
+- { name: help wanted, color: 008672, description: Extra attention is needed }
+
+# Applied automatically by Dependabot
+- { name: dependencies, color: 0366d6, description: Pull requests that update a dependency file }
+- { name: python, color: 2b67c6, description: Pull requests that update Python code }
+- { name: github_actions, color: 000000, description: Pull requests that update GitHub Actions code }

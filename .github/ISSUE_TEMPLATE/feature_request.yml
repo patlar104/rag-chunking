@@ -1,0 +1,39 @@
+name: Feature request
+description: Suggest an improvement or a new capability
+labels: ["enhancement", "needs-triage"]
+assignees: ["patlar104"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What would you like to happen? A new strategy, backend, dashboard view, or option?
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Chunking strategies
+        - Embedding / LLM backends
+        - Web UI (Chunk Monitor)
+        - LangChain / LlamaIndex integrations
+        - CI / tooling
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: markdown
+    attributes:
+      value: |
+        The core `chunking/` package stays standard-library only, so anything that needs a third-party package would be an optional extra.

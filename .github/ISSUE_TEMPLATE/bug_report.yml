@@ -1,0 +1,69 @@
+name: Bug report
+description: Something is broken or gives a wrong result
+labels: ["bug", "needs-triage"]
+assignees: ["patlar104"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please do not paste API keys (`DEEPINFRA_API_KEY`, `OPENAI_API_KEY`) or private documents; the public dashboard shows runs to all viewers.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what you got instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: A short command or snippet, for example `python demo.py --compare`, or the text you chunked.
+      render: shell
+    validations:
+      required: true
+  - type: dropdown
+    id: strategy
+    attributes:
+      label: Chunking strategy
+      options:
+        - Not strategy-specific
+        - fixed
+        - recursive
+        - document
+        - semantic
+        - propositional
+        - agentic
+    validations:
+      required: true
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Embedding / LLM backend
+      options:
+        - Offline (built-in fallbacks)
+        - Ollama
+        - DeepInfra
+        - OpenAI or compatible
+        - sentence-transformers
+        - LangChain / LlamaIndex integration
+    validations:
+      required: true
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      placeholder: "3.15.0"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: rag-chunking version
+      description: From `pip show rag-chunking`, or a commit hash.
+      placeholder: "0.5.0"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or traceback
+      render: text
