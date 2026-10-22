@@ -14,6 +14,9 @@ To cut a release, move the **Unreleased** items into a new version section, bump
 - `.coderabbit.yaml` with review settings for CodeRabbit, including path instructions for the stdlib-only core, `--public` mode and the test conventions.
 - Issue forms for bug reports and feature requests, a label set in `.github/labels.json`, and a `Repo metadata` workflow that syncs those labels and creates the `v0.5.1` and `v0.6.0` milestones when merged to `main`.
 
+### Changed
+- Python files are now formatted with `ruff format` (Markdown is excluded), and CI, `/check` and the Codex check runner run `ruff format --check .`. This is a formatting-only change: 29 files were reflowed, and the only effect on code is re-indented text inside two docstrings.
+
 ## [0.5.0] - 2026-10-20
 
 ### Changed

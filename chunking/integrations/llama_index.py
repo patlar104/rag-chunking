@@ -21,6 +21,7 @@ Or use this package's embedders inside LlamaIndex:
     from chunking.integrations.llama_index import ChunkingEmbedding
     Settings.embed_model = ChunkingEmbedding("ollama:nomic-embed-text", cache=True)
 """
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -53,6 +54,7 @@ __all__ = ["ChunkingNodeParser", "ChunkingEmbedding", "LlamaIndexEmbedder", "Lla
 
 
 # -- LlamaIndex models -> chunking backends -----------------------------------------------------
+
 
 class LlamaIndexEmbedder:
     """Wrap a LlamaIndex embedding model so the semantic chunker can use it."""
@@ -103,6 +105,7 @@ def _as_llm(llm):
 
 # -- chunkers -> LlamaIndex node parser ------------------------------------------------------------
 
+
 class ChunkingNodeParser(NodeParser):
     """A LlamaIndex `NodeParser` backed by any strategy in this package.
 
@@ -117,12 +120,26 @@ class ChunkingNodeParser(NodeParser):
     flatten_metadata: bool = Field(default=True, description="make metadata vector-store safe")
     _chunker: Any = PrivateAttr()
 
-    def __init__(self, strategy: str = "recursive", *, chunker=None, embed_model=None, llm=None,
-                 overlap_tokens: int = 0, flatten_metadata: bool = True,
-                 include_metadata: bool = True, include_prev_next_rel: bool = True,
-                 **chunker_kwargs: Any):
-        super().__init__(strategy=strategy, overlap_tokens=overlap_tokens, flatten_metadata=flatten_metadata,
-                         include_metadata=include_metadata, include_prev_next_rel=include_prev_next_rel)
+    def __init__(
+        self,
+        strategy: str = "recursive",
+        *,
+        chunker=None,
+        embed_model=None,
+        llm=None,
+        overlap_tokens: int = 0,
+        flatten_metadata: bool = True,
+        include_metadata: bool = True,
+        include_prev_next_rel: bool = True,
+        **chunker_kwargs: Any,
+    ):
+        super().__init__(
+            strategy=strategy,
+            overlap_tokens=overlap_tokens,
+            flatten_metadata=flatten_metadata,
+            include_metadata=include_metadata,
+            include_prev_next_rel=include_prev_next_rel,
+        )
         self._chunker = build_chunker(strategy, chunker, _as_embedder(embed_model), _as_llm(llm), **chunker_kwargs)
 
     @classmethod
@@ -143,10 +160,12 @@ class ChunkingNodeParser(NodeParser):
                 md = chunk_metadata(c, self.flatten_metadata)
                 md.setdefault("strategy", self.strategy)
                 n.metadata.update(md)
-                n.excluded_embed_metadata_keys = list(n.excluded_embed_metadata_keys) + \
-                    [k for k in md if k in NON_EMBED_KEYS]
-                n.excluded_llm_metadata_keys = list(n.excluded_llm_metadata_keys) + \
-                    [k for k in md if k in NON_EMBED_KEYS and k != "source_passage"]
+                n.excluded_embed_metadata_keys = list(n.excluded_embed_metadata_keys) + [
+                    k for k in md if k in NON_EMBED_KEYS
+                ]
+                n.excluded_llm_metadata_keys = list(n.excluded_llm_metadata_keys) + [
+                    k for k in md if k in NON_EMBED_KEYS and k != "source_passage"
+                ]
                 if c.start >= 0:
                     n.start_char_idx, n.end_char_idx = c.start, c.end
             out.extend(built)
@@ -154,6 +173,7 @@ class ChunkingNodeParser(NodeParser):
 
 
 # -- chunking embedders -> LlamaIndex embed model ------------------------------------------------------
+
 
 class ChunkingEmbedding(BaseEmbedding):
     """Expose this package's embedders (Ollama with correct prefixes, sentence-transformers,

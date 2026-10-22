@@ -1,4 +1,5 @@
 """Shared helpers for the framework integrations."""
+
 from __future__ import annotations
 
 import json
@@ -8,9 +9,22 @@ from .. import get_chunker, with_overlap
 from ..base import Chunk
 
 # Keys that are useful to store but shouldn't be embedded (they would dilute the vector).
-NON_EMBED_KEYS = ("source_passage", "start_index", "end_index", "strategy", "split_level", "blocks",
-                  "cut_reason", "cut_distance", "threshold", "sentences", "opened_by", "mode",
-                  "first_token", "overlap_tokens")
+NON_EMBED_KEYS = (
+    "source_passage",
+    "start_index",
+    "end_index",
+    "strategy",
+    "split_level",
+    "blocks",
+    "cut_reason",
+    "cut_distance",
+    "threshold",
+    "sentences",
+    "opened_by",
+    "mode",
+    "first_token",
+    "overlap_tokens",
+)
 
 
 def flatten(md: dict[str, Any]) -> dict[str, Any]:
@@ -47,7 +61,7 @@ def build_chunker(strategy: str, chunker=None, embed=None, llm=None, **kwargs):
 
 def run_chunker(chunker, text: str, overlap_tokens: int = 0):
     chunks = chunker.split(text)
-    if overlap_tokens and chunks and all(c.start >= 0 and text[c.start:c.end] == c.text for c in chunks):
+    if overlap_tokens and chunks and all(c.start >= 0 and text[c.start : c.end] == c.text for c in chunks):
         chunks = with_overlap(text, chunks, overlap_tokens)
     return chunks
 
@@ -78,6 +92,7 @@ def resolve_embedder(embed: Any | None):
     """Accept a spec string ('ollama:nomic-embed-text') or an embedder object."""
     if isinstance(embed, str):
         from ..embeddings import get_embedder
+
         return get_embedder(embed)
     return embed
 
@@ -85,5 +100,6 @@ def resolve_embedder(embed: Any | None):
 def resolve_llm(llm: Any | None):
     if isinstance(llm, str):
         from ..llm import get_llm
+
         return get_llm(llm)
     return llm

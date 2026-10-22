@@ -20,6 +20,7 @@ Event types emitted by the library:
     agentic.decision  index, start, end, boundary, reason, title, mode, ms
     propositional.passage  start, end, propositions, mode
 """
+
 from __future__ import annotations
 
 import contextvars
@@ -73,7 +74,13 @@ def timed(kind: str, **data):
     try:
         yield extra
     except Exception as e:
-        emit(kind, ms=round((time.perf_counter() - t0) * 1000, 2), ok=False,
-             error=f"{type(e).__name__}: {e}"[:400], **data, **extra)
+        emit(
+            kind,
+            ms=round((time.perf_counter() - t0) * 1000, 2),
+            ok=False,
+            error=f"{type(e).__name__}: {e}"[:400],
+            **data,
+            **extra,
+        )
         raise
     emit(kind, ms=round((time.perf_counter() - t0) * 1000, 2), ok=True, **data, **extra)

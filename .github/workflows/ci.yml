@@ -30,6 +30,7 @@ jobs:
           python-version: "3.15"
       - run: pip install ruff
       - run: ruff check . --output-format=github
+      - run: ruff format --check .
       - name: JavaScript syntax
         run: node --check webui/static/app.js
       - name: CHANGELOG has an entry for the pyproject version

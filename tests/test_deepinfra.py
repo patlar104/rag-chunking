@@ -1,5 +1,6 @@
 """DeepInfra backend tests against a fake OpenAI-compatible server (no network, no key).
 Set CHUNKING_LIVE_DEEPINFRA=1 (with DEEPINFRA_API_KEY) to also hit the real API."""
+
 import json
 import os
 import sys
@@ -13,8 +14,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from chunking import get_chunker, get_embedder, get_llm  # noqa: E402
 from chunking.deepinfra import DeepInfraError  # noqa: E402
 
-PROSE = ("Cats are small mammals. They sleep for most of the day. Cats groom themselves often. "
-         "Rust is a systems programming language. It guarantees memory safety. Rust programs compile to native code.")
+PROSE = (
+    "Cats are small mammals. They sleep for most of the day. Cats groom themselves often. "
+    "Rust is a systems programming language. It guarantees memory safety. Rust programs compile to native code."
+)
 
 
 class Fake(BaseHTTPRequestHandler):
@@ -44,8 +47,16 @@ class Fake(BaseHTTPRequestHandler):
             vecs = []
             for i, t in enumerate(body["input"]):
                 t = t.lower()
-                vecs.append({"index": i, "embedding": [t.count("cat") + t.count("they") + .01,
-                                                        t.count("rust") + t.count("memory") + .01, .1]})
+                vecs.append(
+                    {
+                        "index": i,
+                        "embedding": [
+                            t.count("cat") + t.count("they") + 0.01,
+                            t.count("rust") + t.count("memory") + 0.01,
+                            0.1,
+                        ],
+                    }
+                )
             return self._send(200, {"data": list(reversed(vecs)), "usage": {"prompt_tokens": 5}})
         prompt = body["messages"][0]["content"]
         if body.get("response_format", {}).get("type") == "json_object":
@@ -53,8 +64,9 @@ class Fake(BaseHTTPRequestHandler):
             reply = json.dumps({"boundary": "Rust is" in nxt, "title": "Rust" if "Rust" in nxt else "Cats"})
         else:
             reply = "OK"
-        return self._send(200, {"choices": [{"message": {"content": reply}}],
-                                "usage": {"prompt_tokens": 50, "completion_tokens": 8}})
+        return self._send(
+            200, {"choices": [{"message": {"content": reply}}], "usage": {"prompt_tokens": 50, "completion_tokens": 8}}
+        )
 
 
 class DeepInfraTests(unittest.TestCase):
@@ -77,7 +89,7 @@ class DeepInfraTests(unittest.TestCase):
         emb = get_embedder("deepinfra", base_url=self.base, api_key="good")
         self.assertEqual(emb.name, "deepinfra:BAAI/bge-base-en-v1.5")
         vecs = emb(["cat", "rust"])
-        self.assertGreater(vecs[0][0], vecs[0][1])          # reordered by index, normalised
+        self.assertGreater(vecs[0][0], vecs[0][1])  # reordered by index, normalised
         emb.query("memory")
         self.assertTrue(Fake.seen[-1]["body"]["input"][0].startswith("Represent this sentence"))
         chunks = get_chunker("semantic", embed=emb, buffer=1, min_sentences=1).split(PROSE)
@@ -103,12 +115,13 @@ class DeepInfraTests(unittest.TestCase):
             get_llm("deepinfra", base_url=self.base, api_key="bad")("hi")
         self.assertEqual(cm.exception.status, 401)
         self.assertIn("invalid api key", str(cm.exception))
-        self.assertNotIn("bad", str(cm.exception).replace("check", ""))   # never echo the key
+        self.assertNotIn("bad", str(cm.exception).replace("check", ""))  # never echo the key
 
 
 class BudgetTests(unittest.TestCase):
     def test_llm_budget_blocks_after_limit(self):
         from webui.runner import Runner  # stdlib only, no FastAPI needed
+
         r = Runner(lambda *a: None)
         r.llm_budget = 2
         self.assertTrue(r._take_llm_call() and r._take_llm_call())

@@ -1,4 +1,5 @@
 """Shared building blocks: the Chunk type, tokenising, sentence splitting, overlap."""
+
 from __future__ import annotations
 
 import bisect
@@ -116,7 +117,7 @@ def with_overlap(text: str, chunks: list[Chunk], overlap_tokens: int = 30) -> li
         new_idx = max(0, idx - overlap_tokens)
         new_start = max(spans[new_idx][0], prev.start) if spans else ch.start
         md = dict(ch.metadata, overlap_tokens=idx - bisect.bisect_left(starts, new_start))
-        out.append(Chunk(text[new_start:ch.end], new_start, ch.end, md))
+        out.append(Chunk(text[new_start : ch.end], new_start, ch.end, md))
     return out
 
 

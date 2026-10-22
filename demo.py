@@ -14,6 +14,7 @@ Real models (see `python demo.py --doctor` for what's available):
     python demo.py --embed auto --llm auto     # pick the best local backends
     python demo.py --embed ollama:all-minilm --pull   # download missing Ollama models first
 """
+
 from __future__ import annotations
 
 import argparse
@@ -47,7 +48,9 @@ def build(name: str, size: int, overlap: int, llm, embed):
 def show(name, chunks, max_chunks, seconds):
     print(f"\n{BAR}\n{name.upper()}  ·  {len(chunks)} chunks  ·  {seconds:.2f}s\n{BAR}")
     for i, c in enumerate(chunks[:max_chunks], 1):
-        md = {k: v for k, v in c.metadata.items() if k not in ("strategy", "source_passage") and v not in (None, [], "")}
+        md = {
+            k: v for k, v in c.metadata.items() if k not in ("strategy", "source_passage") and v not in (None, [], "")
+        }
         print(f"[{i}] {c.tokens} tok  {md}")
         print(textwrap.indent(textwrap.shorten(c.text.replace("\n", " ⏎ "), 300), "    "))
     if len(chunks) > max_chunks:
@@ -74,11 +77,13 @@ def doctor(host):
         print("  not reachable  ->  install from https://ollama.com/download, then `ollama serve`")
     try:
         import sentence_transformers
+
         print(f"sentence-transformers {sentence_transformers.__version__}: installed  (--embed st)")
     except ImportError:
         print("sentence-transformers: not installed  ->  pip install sentence-transformers")
     try:
         import openai
+
         key = "set" if os.environ.get("OPENAI_API_KEY") else "NOT set"
         print(f"openai {openai.__version__}: installed, OPENAI_API_KEY {key}")
     except ImportError:
@@ -98,10 +103,14 @@ def main():
     ap.add_argument("--max-show", type=int, default=8, help="chunks to print per strategy")
     ap.add_argument("--compare", action="store_true", help="print only the stats table")
     ap.add_argument("-q", "--query", help="retrieve the best chunk per strategy for this question")
-    ap.add_argument("--embed", default="hashing",
-                    help="hashing | auto | ollama[:model] | st[:model] | openai[:model]  (default: hashing)")
-    ap.add_argument("--llm", default="none",
-                    help="none | auto | ollama[:model] | openai[:model]  (for propositional + agentic)")
+    ap.add_argument(
+        "--embed",
+        default="hashing",
+        help="hashing | auto | ollama[:model] | st[:model] | openai[:model]  (default: hashing)",
+    )
+    ap.add_argument(
+        "--llm", default="none", help="none | auto | ollama[:model] | openai[:model]  (for propositional + agentic)"
+    )
     ap.add_argument("--ollama-host", help="default: $OLLAMA_HOST or http://localhost:11434")
     ap.add_argument("--pull", action="store_true", help="pull missing Ollama models before running")
     ap.add_argument("--no-cache", action="store_true", help="don't cache embeddings on disk")

@@ -1,4 +1,5 @@
 """Strategy 01: fixed-size chunking (fast character or token slicing)."""
+
 from __future__ import annotations
 
 from .base import Chunk, token_spans

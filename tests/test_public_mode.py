@@ -1,4 +1,5 @@
 """Public (internet-facing) mode: size/queue limits, fixed backends, cancel tokens, rate limits."""
+
 import sys
 import time
 import unittest
@@ -10,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 try:
     import fastapi  # noqa: F401
     import httpx  # noqa: F401
+
     HAVE_WEB = True
 except ImportError:
     HAVE_WEB = False
@@ -33,6 +35,7 @@ class PublicMode(unittest.TestCase):
         from fastapi.testclient import TestClient
 
         from webui import server
+
         cls.server = server
         cls.cm = TestClient(server.app)
         cls.client = cls.cm.__enter__()

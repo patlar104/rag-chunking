@@ -1,4 +1,5 @@
 """LangChain / LlamaIndex integration tests (skipped if the framework isn't installed)."""
+
 import json
 import sys
 import unittest
@@ -11,9 +12,11 @@ warnings.filterwarnings("ignore", category=UserWarning)
 from chunking import events  # noqa: E402
 
 SAMPLE = (Path(__file__).resolve().parents[1] / "sample.md").read_text()
-PROSE = ("Cats are small mammals. They sleep for most of the day. Cats groom themselves often. "
-         "Rust is a systems programming language. It guarantees memory safety without a garbage collector. "
-         "Rust programs compile to native code. The Rust borrow checker enforces ownership rules.")
+PROSE = (
+    "Cats are small mammals. They sleep for most of the day. Cats groom themselves often. "
+    "Rust is a systems programming language. It guarantees memory safety without a garbage collector. "
+    "Rust programs compile to native code. The Rust borrow checker enforces ownership rules."
+)
 
 
 def toy(text):
@@ -29,12 +32,14 @@ def boundary_reply(prompt):
 try:
     import langchain_core  # noqa: F401
     import langchain_text_splitters  # noqa: F401
+
     HAVE_LC = True
 except ImportError:
     HAVE_LC = False
 
 try:
     import llama_index.core  # noqa: F401
+
     HAVE_LI = True
 except ImportError:
     HAVE_LI = False
@@ -48,6 +53,7 @@ class LangChainTests(unittest.TestCase):
         from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 
         from chunking.integrations.langchain import ChunkingEmbeddings, ChunkingTextSplitter
+
         self.Document, self.Splitter, self.CE = Document, ChunkingTextSplitter, ChunkingEmbeddings
 
         class ToyEmbeddings(Embeddings):
@@ -60,21 +66,24 @@ class LangChainTests(unittest.TestCase):
         class PromptAwareChat(GenericFakeChatModel):
             def invoke(self, input, *a, **k):  # reply depends on the prompt
                 from langchain_core.messages import AIMessage
+
                 return AIMessage(content=boundary_reply(input if isinstance(input, str) else str(input)))
 
         self.ToyEmbeddings, self.Chat = ToyEmbeddings, PromptAwareChat
 
     def test_document_splitter_metadata(self):
         docs = self.Splitter("document", max_tokens=80).split_documents(
-            [self.Document(page_content=SAMPLE, metadata={"source": "sample.md"})])
+            [self.Document(page_content=SAMPLE, metadata={"source": "sample.md"})]
+        )
         self.assertGreater(len(docs), 4)
         table = next(d for d in docs if "table" in d.metadata["blocks"])
         self.assertEqual(table.metadata["headings"], "Redis Field Guide > Installation > Requirements")
         self.assertEqual(table.metadata["source"], "sample.md")
         for d in docs:  # vector-store safe + real offsets
             self.assertTrue(all(isinstance(v, (str, int, float, bool)) for v in d.metadata.values()))
-            self.assertEqual(SAMPLE[d.metadata["start_index"]:d.metadata["end_index"]].strip()[-20:],
-                             d.page_content[-20:])
+            self.assertEqual(
+                SAMPLE[d.metadata["start_index"] : d.metadata["end_index"]].strip()[-20:], d.page_content[-20:]
+            )
 
     def test_split_text_and_overlap(self):
         plain = self.Splitter("recursive", chunk_size=25).split_text(PROSE)
@@ -94,6 +103,7 @@ class LangChainTests(unittest.TestCase):
 
     def test_chunking_embeddings_in_vector_store(self):
         from langchain_core.vectorstores import InMemoryVectorStore
+
         store = InMemoryVectorStore(self.CE("hashing"))
         store.add_documents(self.Splitter("document", max_tokens=80).create_documents([SAMPLE]))
         hit = store.similarity_search("spending cap for each team at the offsite", k=1)[0]
@@ -119,6 +129,7 @@ class LlamaIndexTests(unittest.TestCase):
         from llama_index.core.llms.mock import MockLLM
 
         from chunking.integrations.llama_index import ChunkingEmbedding, ChunkingNodeParser
+
         self.Document, self.Parser, self.CE = Document, ChunkingNodeParser, ChunkingEmbedding
 
         class ToyEmbedding(BaseEmbedding):
@@ -139,22 +150,25 @@ class LlamaIndexTests(unittest.TestCase):
 
     def test_node_parser_offsets_metadata_relationships(self):
         from llama_index.core.schema import MetadataMode, NodeRelationship
+
         nodes = self.Parser("document", max_tokens=80).get_nodes_from_documents(
-            [self.Document(text=SAMPLE, metadata={"source": "sample.md"})])
+            [self.Document(text=SAMPLE, metadata={"source": "sample.md"})]
+        )
         self.assertGreater(len(nodes), 4)
         n = nodes[1]
         self.assertEqual(n.metadata["source"], "sample.md")
         self.assertIn(NodeRelationship.SOURCE, n.relationships)
         self.assertIn(NodeRelationship.PREVIOUS, n.relationships)
         self.assertIn(NodeRelationship.NEXT, n.relationships)
-        self.assertEqual(SAMPLE[nodes[0].start_char_idx:nodes[0].end_char_idx], nodes[0].text)
+        self.assertEqual(SAMPLE[nodes[0].start_char_idx : nodes[0].end_char_idx], nodes[0].text)
         embed_text = n.get_content(metadata_mode=MetadataMode.EMBED)
         self.assertIn("headings:", embed_text)
         self.assertNotIn("start_index", embed_text)
 
     def test_semantic_with_llamaindex_embedding(self):
-        nodes = self.Parser("semantic", embed_model=self.ToyEmbedding(), buffer=1, min_sentences=1) \
-            .get_nodes_from_documents([self.Document(text=PROSE)])
+        nodes = self.Parser(
+            "semantic", embed_model=self.ToyEmbedding(), buffer=1, min_sentences=1
+        ).get_nodes_from_documents([self.Document(text=PROSE)])
         self.assertEqual(len(nodes), 2)
 
     def test_agentic_with_llamaindex_llm(self):
@@ -163,16 +177,22 @@ class LlamaIndexTests(unittest.TestCase):
 
     def test_propositional_keeps_passage_for_llm_only(self):
         from llama_index.core.schema import MetadataMode
+
         nodes = self.Parser("propositional").get_nodes_from_documents(
-            [self.Document(text="Redis is fast. It stores data in RAM.")])
+            [self.Document(text="Redis is fast. It stores data in RAM.")]
+        )
         self.assertEqual(nodes[1].text, "Redis stores data in RAM.")
         self.assertNotIn("source_passage", nodes[1].get_content(metadata_mode=MetadataMode.EMBED))
         self.assertIn("source_passage", nodes[1].get_content(metadata_mode=MetadataMode.LLM))
 
     def test_chunking_embedding_in_index(self):
         from llama_index.core import VectorStoreIndex
-        idx = VectorStoreIndex.from_documents([self.Document(text=SAMPLE)], embed_model=self.CE("hashing"),
-                                              transformations=[self.Parser("document", max_tokens=80)])
+
+        idx = VectorStoreIndex.from_documents(
+            [self.Document(text=SAMPLE)],
+            embed_model=self.CE("hashing"),
+            transformations=[self.Parser("document", max_tokens=80)],
+        )
         hit = idx.as_retriever(similarity_top_k=1).retrieve("spending cap for each team at the offsite")[0]
         self.assertIn("Team Notes", hit.node.metadata["headings"])
 

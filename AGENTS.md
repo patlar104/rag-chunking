@@ -17,6 +17,7 @@ python demo.py --compare                 # Compare strategies offline
 python -m webui.server                   # Serve dashboard at localhost:8000
 python -m unittest discover -s tests -v   # Run tests; missing extras skip
 ruff check .                            # Check Python lint and imports
+ruff format .                           # Format Python (CI runs `ruff format --check .`)
 node --check webui/static/app.js         # Check frontend JavaScript syntax
 python -m build                         # Build wheel and sdist in dist/
 ```

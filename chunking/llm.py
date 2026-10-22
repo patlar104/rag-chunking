@@ -8,6 +8,7 @@ mode), so small local models produce parseable answers far more reliably.
     get_llm("openai:gpt-4o-mini")    # API
     get_llm("auto")                  # local Ollama chat model if one is installed, else OpenAI, else None
 """
+
 from __future__ import annotations
 
 import json
@@ -26,14 +27,22 @@ _THINK = re.compile(r"<think>.*?</think>", re.S)
 class OllamaLLM:
     """Chat model served by Ollama. Small models work well for chunking decisions:
 
-        ollama pull llama3.2:3b     # 2.0 GB, good default
-        ollama pull qwen2.5:1.5b    # 1.0 GB, fast on a laptop CPU
-        ollama pull llama3.2:1b     # 1.3 GB
+    ollama pull llama3.2:3b     # 2.0 GB, good default
+    ollama pull qwen2.5:1.5b    # 1.0 GB, fast on a laptop CPU
+    ollama pull llama3.2:1b     # 1.3 GB
     """
 
-    def __init__(self, model: str = "llama3.2:3b", host: str | None = None,
-                 temperature: float = 0.0, num_ctx: int | None = 4096, keep_alive: str = "10m",
-                 timeout: float = 300, system: str | None = None, think: bool | None = None):
+    def __init__(
+        self,
+        model: str = "llama3.2:3b",
+        host: str | None = None,
+        temperature: float = 0.0,
+        num_ctx: int | None = 4096,
+        keep_alive: str = "10m",
+        timeout: float = 300,
+        system: str | None = None,
+        think: bool | None = None,
+    ):
         self.model, self.name = model, f"ollama:{model}"
         self.client = ollama.Client(host, timeout=timeout)
         self.options = {"temperature": temperature}
@@ -44,17 +53,22 @@ class OllamaLLM:
         self.calls = 0
 
     def _chat(self, prompt: str, fmt: Any = None) -> str:
-        msgs = ([{"role": "system", "content": self.system}] if self.system else []) + \
-               [{"role": "user", "content": prompt}]
-        body = {"model": self.model, "messages": msgs, "stream": False,
-                "options": self.options, "keep_alive": self.keep_alive}
+        msgs = ([{"role": "system", "content": self.system}] if self.system else []) + [
+            {"role": "user", "content": prompt}
+        ]
+        body = {
+            "model": self.model,
+            "messages": msgs,
+            "stream": False,
+            "options": self.options,
+            "keep_alive": self.keep_alive,
+        }
         if fmt is not None:
             body["format"] = fmt
         if self.think is not None:
             body["think"] = self.think
         self.calls += 1
-        with events.timed("llm.call", backend=self.name, json=fmt is not None,
-                          prompt_chars=len(prompt)) as info:
+        with events.timed("llm.call", backend=self.name, json=fmt is not None, prompt_chars=len(prompt)) as info:
             r = self.client.post("/api/chat", body)
             info.update(_ollama_usage(r))
         return _THINK.sub("", r["message"]["content"]).strip()
@@ -65,11 +79,11 @@ class OllamaLLM:
     def complete_json(self, prompt: str, schema: dict | None = None) -> str:
         if schema and self._schema_ok:
             try:
-                return self._chat(prompt, schema)          # structured outputs (Ollama >= 0.5)
+                return self._chat(prompt, schema)  # structured outputs (Ollama >= 0.5)
             except ollama.OllamaError as e:
                 if isinstance(e, (ollama.OllamaNotRunning, ollama.ModelNotFound)):
                     raise
-                self._schema_ok = False                    # older server: plain JSON mode
+                self._schema_ok = False  # older server: plain JSON mode
         return self._chat(prompt, "json")
 
     def __repr__(self):
@@ -80,8 +94,13 @@ class OpenAILLM:
     """`pip install openai`, set OPENAI_API_KEY. Pass `base_url` for any
     OpenAI-compatible server (LM Studio, vLLM, llama.cpp, Groq, ...)."""
 
-    def __init__(self, model: str = "gpt-4o-mini", temperature: float = 0.0,
-                 base_url: str | None = None, api_key: str | None = None):
+    def __init__(
+        self,
+        model: str = "gpt-4o-mini",
+        temperature: float = 0.0,
+        base_url: str | None = None,
+        api_key: str | None = None,
+    ):
         try:
             from openai import OpenAI  # type: ignore
         except ImportError as e:
@@ -94,8 +113,8 @@ class OpenAILLM:
         self.calls += 1
         with events.timed("llm.call", backend=self.name, json=bool(kw), prompt_chars=len(prompt)) as info:
             r = self.client.chat.completions.create(
-                model=self.model, temperature=self.temperature,
-                messages=[{"role": "user", "content": prompt}], **kw)
+                model=self.model, temperature=self.temperature, messages=[{"role": "user", "content": prompt}], **kw
+            )
             if getattr(r, "usage", None):
                 info.update(prompt_tokens=r.usage.prompt_tokens, completion_tokens=r.usage.completion_tokens)
         return r.choices[0].message.content or ""
@@ -132,6 +151,7 @@ def get_llm(spec: str | None, **kwargs):
         return OpenAILLM(model or "gpt-4o-mini", **kwargs)
     if kind == "deepinfra":
         from .deepinfra import DEFAULT_LLM, DeepInfraLLM
+
         return DeepInfraLLM(model or DEFAULT_LLM, **kwargs)
     if kind == "auto":
         client = ollama.Client(kwargs.get("host"), timeout=3)
@@ -143,6 +163,7 @@ def get_llm(spec: str | None, **kwargs):
             return OpenAILLM(**kwargs)
         if os.environ.get("DEEPINFRA_API_KEY"):
             from .deepinfra import DeepInfraLLM
+
             return DeepInfraLLM(**kwargs)
         return None
     raise ValueError(f"unknown LLM {spec!r}; use ollama[:model], openai[:model], deepinfra[:model], auto or none")

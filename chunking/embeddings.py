@@ -10,6 +10,7 @@ want a different prefix for search queries (nomic-embed-text, e5, bge, ...).
     get_embedder("openai:text-embedding-3-small") # API
     get_embedder("auto")                          # best one available on this machine
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -53,8 +54,7 @@ class BaseEmbedder:
     name = "base"
     batch_size = 64
 
-    def __init__(self, doc_prefix: str | None = None, query_prefix: str | None = None,
-                 model: str = ""):
+    def __init__(self, doc_prefix: str | None = None, query_prefix: str | None = None, model: str = ""):
         auto_doc, auto_query = _prefixes_for(model)
         self.doc_prefix = auto_doc if doc_prefix is None else doc_prefix
         self.query_prefix = auto_query if query_prefix is None else query_prefix
@@ -82,10 +82,12 @@ class BaseEmbedder:
 
 # -- offline -----------------------------------------------------------------
 
-_STOP = set("""a an and are as at be been but by can could did do does for from had has have he her
+_STOP = set(
+    """a an and are as at be been but by can could did do does for from had has have he her
 his how i if in into is it its just may me more most my no not of on or our she so some such than
 that the their them then there these they this those to too very was we were what when where which
-while who why will with would you your""".split())
+while who why will with would you your""".split()
+)
 
 
 def _stem(w: str) -> str:
@@ -111,13 +113,14 @@ class HashingEmbedder(BaseEmbedder):
         for text in texts:
             v = [0.0] * self.dim
             words = [_stem(w) for w in re.findall(r"[a-z0-9]+", text.lower()) if w not in _STOP]
-            for f in words + [w[i:i + 3] for w in words for i in range(max(1, len(w) - 2))]:
+            for f in words + [w[i : i + 3] for w in words for i in range(max(1, len(w) - 2))]:
                 v[int(hashlib.md5(f.encode()).hexdigest(), 16) % self.dim] += 1.0
             vecs.append(v)
         return vecs
 
 
 # -- Ollama --------------------------------------------------------------------
+
 
 class OllamaEmbedder(BaseEmbedder):
     """Local embeddings from an Ollama server.
@@ -132,9 +135,16 @@ class OllamaEmbedder(BaseEmbedder):
 
     batch_size = 32
 
-    def __init__(self, model: str = "nomic-embed-text", host: str | None = None,
-                 doc_prefix: str | None = None, query_prefix: str | None = None,
-                 truncate: bool = True, keep_alive: str = "5m", timeout: float = 120):
+    def __init__(
+        self,
+        model: str = "nomic-embed-text",
+        host: str | None = None,
+        doc_prefix: str | None = None,
+        query_prefix: str | None = None,
+        truncate: bool = True,
+        keep_alive: str = "5m",
+        timeout: float = 120,
+    ):
         super().__init__(doc_prefix, query_prefix, model)
         self.model, self.name = model, f"ollama:{model}"
         self.client = ollama.Client(host, timeout=timeout)
@@ -144,17 +154,23 @@ class OllamaEmbedder(BaseEmbedder):
     def _embed(self, texts):
         if not self._legacy:
             try:
-                r = self.client.post("/api/embed", {"model": self.model, "input": texts,
-                                                    "truncate": self.truncate, "keep_alive": self.keep_alive})
+                r = self.client.post(
+                    "/api/embed",
+                    {"model": self.model, "input": texts, "truncate": self.truncate, "keep_alive": self.keep_alive},
+                )
                 return r["embeddings"]
             except ollama.EndpointMissing:
                 self._legacy = True
-        return [self.client.post("/api/embeddings", {"model": self.model, "prompt": t,
-                                                     "keep_alive": self.keep_alive})["embedding"]
-                for t in texts]
+        return [
+            self.client.post("/api/embeddings", {"model": self.model, "prompt": t, "keep_alive": self.keep_alive})[
+                "embedding"
+            ]
+            for t in texts
+        ]
 
 
 # -- sentence-transformers -----------------------------------------------------
+
 
 class SentenceTransformerEmbedder(BaseEmbedder):
     """Local embeddings with `pip install sentence-transformers`.
@@ -166,24 +182,32 @@ class SentenceTransformerEmbedder(BaseEmbedder):
 
     batch_size = 64
 
-    def __init__(self, model: str = "all-MiniLM-L6-v2", device: str | None = None,
-                 doc_prefix: str | None = None, query_prefix: str | None = None,
-                 trust_remote_code: bool = False):
+    def __init__(
+        self,
+        model: str = "all-MiniLM-L6-v2",
+        device: str | None = None,
+        doc_prefix: str | None = None,
+        query_prefix: str | None = None,
+        trust_remote_code: bool = False,
+    ):
         super().__init__(doc_prefix, query_prefix, model)
         try:
             from sentence_transformers import SentenceTransformer  # type: ignore
         except ImportError as e:
-            raise ImportError("sentence-transformers is not installed. Run:\n"
-                              "  pip install sentence-transformers") from e
+            raise ImportError(
+                "sentence-transformers is not installed. Run:\n  pip install sentence-transformers"
+            ) from e
         self.model_name, self.name = model, f"st:{model}"
         self.model = SentenceTransformer(model, device=device, trust_remote_code=trust_remote_code)
 
     def _embed(self, texts):
-        return self.model.encode(texts, batch_size=self.batch_size, normalize_embeddings=True,
-                                 show_progress_bar=False).tolist()
+        return self.model.encode(
+            texts, batch_size=self.batch_size, normalize_embeddings=True, show_progress_bar=False
+        ).tolist()
 
 
 # -- OpenAI --------------------------------------------------------------------
+
 
 class OpenAIEmbedder(BaseEmbedder):
     """`pip install openai` and set OPENAI_API_KEY. Also works with any
@@ -191,8 +215,13 @@ class OpenAIEmbedder(BaseEmbedder):
 
     batch_size = 256
 
-    def __init__(self, model: str = "text-embedding-3-small", base_url: str | None = None,
-                 api_key: str | None = None, dimensions: int | None = None):
+    def __init__(
+        self,
+        model: str = "text-embedding-3-small",
+        base_url: str | None = None,
+        api_key: str | None = None,
+        dimensions: int | None = None,
+    ):
         super().__init__("", "", model)
         try:
             from openai import OpenAI  # type: ignore
@@ -208,6 +237,7 @@ class OpenAIEmbedder(BaseEmbedder):
 
 
 # -- cache -----------------------------------------------------------------------
+
 
 class CachedEmbedder:
     """Wrap any embedder with a SQLite cache keyed by (model, text).
@@ -233,7 +263,7 @@ class CachedEmbedder:
         keys = [self._key(kind, t) for t in texts]
         found = {}
         for i in range(0, len(keys), 500):
-            part = keys[i:i + 500]
+            part = keys[i : i + 500]
             q = f"SELECT key, vec FROM emb WHERE key IN ({','.join('?' * len(part))})"
             found.update({k: json.loads(v) for k, v in self.db.execute(q, part)})
         todo = [i for i, k in enumerate(keys) if k not in found]
@@ -270,6 +300,7 @@ class CachedEmbedder:
 
 # -- factory -----------------------------------------------------------------------
 
+
 def get_embedder(spec: str = "hashing", cache: bool = False, **kwargs):
     """Build an embedder from a short spec: 'hashing', 'ollama[:model]',
     'st[:model]', 'openai[:model]', 'deepinfra[:model]', or 'auto'."""
@@ -287,16 +318,31 @@ def get_embedder(spec: str = "hashing", cache: bool = False, **kwargs):
         emb = OpenAIEmbedder(model or "text-embedding-3-small", **kwargs)
     elif kind == "deepinfra":
         from .deepinfra import DEFAULT_EMBED, DeepInfraEmbedder
+
         emb = DeepInfraEmbedder(model or DEFAULT_EMBED, **kwargs)
     else:
-        raise ValueError(f"unknown embedder {spec!r}; use hashing, ollama[:model], st[:model], openai[:model], "
-                         "deepinfra[:model] or auto")
+        raise ValueError(
+            f"unknown embedder {spec!r}; use hashing, ollama[:model], st[:model], openai[:model], "
+            "deepinfra[:model] or auto"
+        )
     return CachedEmbedder(emb) if cache and kind != "hashing" else emb
 
 
-_OLLAMA_PREFERENCE = ("nomic-embed-text", "mxbai-embed-large", "snowflake-arctic-embed", "bge-m3",
-                      "bge", "embeddinggemma", "qwen3-embedding", "granite-embedding", "embed",
-                      "all-minilm", "minilm", "e5", "gte")
+_OLLAMA_PREFERENCE = (
+    "nomic-embed-text",
+    "mxbai-embed-large",
+    "snowflake-arctic-embed",
+    "bge-m3",
+    "bge",
+    "embeddinggemma",
+    "qwen3-embedding",
+    "granite-embedding",
+    "embed",
+    "all-minilm",
+    "minilm",
+    "e5",
+    "gte",
+)
 
 
 def _auto(**kwargs):
@@ -304,12 +350,13 @@ def _auto(**kwargs):
     client = ollama.Client(kwargs.get("host"), timeout=3)
     if client.is_running():
         models = client.list_models()
-        for pref in _OLLAMA_PREFERENCE:   # strongest general-purpose models first
+        for pref in _OLLAMA_PREFERENCE:  # strongest general-purpose models first
             for m in models:
                 if pref in m:
                     return OllamaEmbedder(m.removesuffix(":latest"), host=kwargs.get("host"))
     try:
         import sentence_transformers  # noqa: F401
+
         return SentenceTransformerEmbedder()
     except ImportError:
         pass
@@ -318,8 +365,10 @@ def _auto(**kwargs):
             return OpenAIEmbedder()
         except ImportError:
             pass
-    print("[chunking] no embedding model found; using the offline hashing embedder. "
-          "Try: ollama pull nomic-embed-text", file=sys.stderr)
+    print(
+        "[chunking] no embedding model found; using the offline hashing embedder. Try: ollama pull nomic-embed-text",
+        file=sys.stderr,
+    )
     return HashingEmbedder()
 
 
@@ -339,6 +388,7 @@ def embed_query(embed, text: str) -> list[float]:
 
 
 # -- maths ----------------------------------------------------------------------------
+
 
 def _normalize(v: Sequence[float]) -> list[float]:
     n = math.sqrt(sum(x * x for x in v)) or 1.0

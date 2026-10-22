@@ -1,4 +1,5 @@
 """Strategy 02: recursive chunking (paragraphs -> sentences -> words)."""
+
 from __future__ import annotations
 
 import re
@@ -7,8 +8,17 @@ from collections.abc import Sequence
 from .base import Chunk, LengthFn, Span, count_tokens, spans_to_chunks
 
 DEFAULT_SEPARATORS = ["\n\n", "\n", ". ", "? ", "! ", "; ", ", ", " ", ""]
-_LEVELS = {"\n\n": "paragraph", "\n": "line", ". ": "sentence", "? ": "sentence",
-           "! ": "sentence", "; ": "clause", ", ": "clause", " ": "word", "": "character"}
+_LEVELS = {
+    "\n\n": "paragraph",
+    "\n": "line",
+    ". ": "sentence",
+    "? ": "sentence",
+    "! ": "sentence",
+    "; ": "clause",
+    ", ": "clause",
+    " ": "word",
+    "": "character",
+}
 
 
 class RecursiveChunker:

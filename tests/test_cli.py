@@ -1,4 +1,5 @@
 """End-to-end checks of the demo CLI (offline backends, no network)."""
+
 import os
 import subprocess
 import sys
@@ -11,12 +12,20 @@ STRATEGIES = ["fixed", "recursive", "document", "semantic", "propositional", "ag
 
 
 def demo(*args, timeout=120):
-    env = dict(os.environ, CHUNKING_CACHE_DIR=tempfile.mkdtemp(), OLLAMA_HOST="http://127.0.0.1:9",
-               PYTHONIOENCODING="utf-8")
+    env = dict(
+        os.environ, CHUNKING_CACHE_DIR=tempfile.mkdtemp(), OLLAMA_HOST="http://127.0.0.1:9", PYTHONIOENCODING="utf-8"
+    )
     env.pop("OPENAI_API_KEY", None)
     env.pop("DEEPINFRA_API_KEY", None)
-    return subprocess.run([sys.executable, str(ROOT / "demo.py"), *args], capture_output=True, text=True,
-                          encoding="utf-8", timeout=timeout, env=env, cwd=ROOT)
+    return subprocess.run(
+        [sys.executable, str(ROOT / "demo.py"), *args],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=timeout,
+        env=env,
+        cwd=ROOT,
+    )
 
 
 class DemoCLI(unittest.TestCase):
@@ -29,7 +38,9 @@ class DemoCLI(unittest.TestCase):
 
     def test_single_strategy_on_custom_file(self):
         with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8") as f:
-            f.write("# Notes\n\nCats sleep a lot. They groom often.\n\n## Rust\n\nRust is memory safe. It compiles natively.\n")
+            f.write(
+                "# Notes\n\nCats sleep a lot. They groom often.\n\n## Rust\n\nRust is memory safe. It compiles natively.\n"
+            )
         try:
             r = demo(f.name, "-s", "document")
         finally:

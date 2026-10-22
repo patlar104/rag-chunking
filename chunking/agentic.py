@@ -5,6 +5,7 @@ The reel's three steps, per incoming sentence:
   2. CONTEXTUALIZE - keep a running title/summary of what the chunk is about
   3. BOUNDARY      - decide: does the sentence belong here, or start a new chunk?
 """
+
 from __future__ import annotations
 
 import re
@@ -29,17 +30,47 @@ start a NEW topic? Reply with JSON only:
 {{"boundary": true or false, "title": "<short title for the chunk the sentence belongs to>"}}
 """
 
-SCHEMA = {"type": "object", "required": ["boundary", "title"],
-          "properties": {"boundary": {"type": "boolean"}, "title": {"type": "string"}}}
+SCHEMA = {
+    "type": "object",
+    "required": ["boundary", "title"],
+    "properties": {"boundary": {"type": "boolean"}, "title": {"type": "string"}},
+}
 
-_SHIFT = re.compile(r"^(#+\s|however\b|meanwhile\b|next\b|finally\b|in contrast\b|on the other hand\b|"
-                    r"another\b|turning to\b|moving on\b|separately\b)", re.I)
-_CONTINUE = re.compile(r"^(it|its|they|their|this|these|that|those|he|she|so|also|and|but|then|"
-                       r"because|for example|for instance|in addition|as a result)\b", re.I)
+_SHIFT = re.compile(
+    r"^(#+\s|however\b|meanwhile\b|next\b|finally\b|in contrast\b|on the other hand\b|"
+    r"another\b|turning to\b|moving on\b|separately\b)",
+    re.I,
+)
+_CONTINUE = re.compile(
+    r"^(it|its|they|their|this|these|that|those|he|she|so|also|and|but|then|"
+    r"because|for example|for instance|in addition|as a result)\b",
+    re.I,
+)
 _EARLY_PRONOUN = re.compile(r"^(?:\S+\s+){0,4}(it|they|them|its|their)\b", re.I)
 _WORD = re.compile(r"[A-Za-z][A-Za-z0-9\-]{3,}")
-_STOP = {"this", "that", "with", "from", "they", "their", "have", "will", "your", "into", "when",
-         "which", "also", "than", "then", "them", "these", "those", "there", "about", "each"}
+_STOP = {
+    "this",
+    "that",
+    "with",
+    "from",
+    "they",
+    "their",
+    "have",
+    "will",
+    "your",
+    "into",
+    "when",
+    "which",
+    "also",
+    "than",
+    "then",
+    "them",
+    "these",
+    "those",
+    "there",
+    "about",
+    "each",
+}
 
 
 class AgenticChunker:
@@ -53,8 +84,14 @@ class AgenticChunker:
         min_sentences: the heuristic won't close a chunk smaller than this.
     """
 
-    def __init__(self, llm: LLM | None = None, max_tokens: int = 300,
-                 min_sentences: int = 2, context_chars: int = 800, **_ignored):
+    def __init__(
+        self,
+        llm: LLM | None = None,
+        max_tokens: int = 300,
+        min_sentences: int = 2,
+        context_chars: int = 800,
+        **_ignored,
+    ):
         self.llm = llm
         self.max_tokens = max_tokens
         self.min_sentences = min_sentences
@@ -73,35 +110,53 @@ class AgenticChunker:
         for i in range(1, len(spans) + 1):
             if i < len(spans):
                 t0 = time.perf_counter()
-                cur_text = text[spans[start][0]: spans[i - 1][1]]
+                cur_text = text[spans[start][0] : spans[i - 1][1]]
                 if count_tokens(cur_text) + count_tokens(sentences[i]) > self.max_tokens:
                     boundary, new_title, why = True, None, "max_tokens"
-                elif self.llm:                                             # step 1: inspect
+                elif self.llm:  # step 1: inspect
                     boundary, new_title, why = self._ask_llm(title, cur_text, sentences[i])
                 else:
                     boundary, why = self._heuristic(sentences[start:i], sentences[i])
                     new_title = None
-                events.emit("agentic.decision", index=i, start=spans[i][0], end=spans[i][1],
-                            boundary=bool(boundary), reason=why or "continues", mode=mode,
-                            title=new_title or title, ms=round((time.perf_counter() - t0) * 1000, 2))
-            if i == len(spans) or boundary:                                # step 3: boundary
+                events.emit(
+                    "agentic.decision",
+                    index=i,
+                    start=spans[i][0],
+                    end=spans[i][1],
+                    boundary=bool(boundary),
+                    reason=why or "continues",
+                    mode=mode,
+                    title=new_title or title,
+                    ms=round((time.perf_counter() - t0) * 1000, 2),
+                )
+            if i == len(spans) or boundary:  # step 3: boundary
                 a, b = spans[start][0], spans[i - 1][1]
-                chunks.append(Chunk(text[a:b], a, b, {
-                    "strategy": "agentic", "title": title, "opened_by": reason,
-                    "mode": "llm" if self.llm else "heuristic"}))
+                chunks.append(
+                    Chunk(
+                        text[a:b],
+                        a,
+                        b,
+                        {
+                            "strategy": "agentic",
+                            "title": title,
+                            "opened_by": reason,
+                            "mode": "llm" if self.llm else "heuristic",
+                        },
+                    )
+                )
                 if i == len(spans):
                     break
                 start, reason = i, why
                 title = new_title or self._title([sentences[i]])
-            else:                                                          # step 2: contextualize
-                title = new_title or self._title(sentences[start: i + 1])
+            else:  # step 2: contextualize
+                title = new_title or self._title(sentences[start : i + 1])
         return chunks
 
     # -- decision makers ---------------------------------------------------
     def _ask_llm(self, title, chunk_text, sentence):
         if sentence.lstrip().startswith("#"):
             return True, None, "heading"  # a heading always opens a chunk; skip the model call
-        prompt = PROMPT.format(title=title, chunk=chunk_text[-self.context_chars:], sentence=sentence)
+        prompt = PROMPT.format(title=title, chunk=chunk_text[-self.context_chars :], sentence=sentence)
         try:
             data = ask_json(self.llm, prompt, SCHEMA)
             boundary = data.get("boundary")
@@ -117,7 +172,7 @@ class AgenticChunker:
         if s.startswith("#"):
             return True, "heading"
         if _CONTINUE.match(s) or _EARLY_PRONOUN.match(s):
-            return False, ""                       # "It ...", "Teams use it ..." -> continues
+            return False, ""  # "It ...", "Teams use it ..." -> continues
         shared = _stems(sentence) & _stems(" ".join(chunk_sentences))
         if len(chunk_sentences) < self.min_sentences:
             return False, ""

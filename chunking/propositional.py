@@ -1,4 +1,5 @@
 """Strategy 05: propositional chunking (decompose complex text into atomic facts)."""
+
 from __future__ import annotations
 
 import re
@@ -19,25 +20,66 @@ Passage:
 {passage}
 """
 
-SCHEMA = {"type": "object", "required": ["propositions"],
-          "properties": {"propositions": {"type": "array", "items": {"type": "string"}}}}
+SCHEMA = {
+    "type": "object",
+    "required": ["propositions"],
+    "properties": {"propositions": {"type": "array", "items": {"type": "string"}}},
+}
 
 _PRONOUN = re.compile(r"^(It|They|This|These|Its|Their)\b")
 _INNER_PRONOUN = re.compile(r"^(it|they)\b")
-_AUX = {"is", "are", "was", "were", "has", "have", "had", "can", "could", "will", "would", "must",
-        "should", "may", "might", "does", "do", "did"}
+_AUX = {
+    "is",
+    "are",
+    "was",
+    "were",
+    "has",
+    "have",
+    "had",
+    "can",
+    "could",
+    "will",
+    "would",
+    "must",
+    "should",
+    "may",
+    "might",
+    "does",
+    "do",
+    "did",
+}
 _DET = {"the", "a", "an", "this", "that", "these", "those", "each", "every", "many", "some"}
 # split "X, and it Y" / "X; Y" / "X, while the Z" into separate clauses
-_SPLIT = re.compile(r";\s+|,\s+(?:and|but|while|whereas)\s+(?=(?:it|they|the|a|an|[A-Z])\b)|"
-                    r"\s+(?:but|while|whereas)\s+(?=(?:it|they|the)\b)")
-_SUBORDINATE = {"when", "if", "while", "after", "before", "because", "although", "since", "once",
-                "however,", "unless", "until", "as"}
+_SPLIT = re.compile(
+    r";\s+|,\s+(?:and|but|while|whereas)\s+(?=(?:it|they|the|a|an|[A-Z])\b)|"
+    r"\s+(?:but|while|whereas)\s+(?=(?:it|they|the)\b)"
+)
+_SUBORDINATE = {
+    "when",
+    "if",
+    "while",
+    "after",
+    "before",
+    "because",
+    "although",
+    "since",
+    "once",
+    "however,",
+    "unless",
+    "until",
+    "as",
+}
 
 
 def _verbish(word: str) -> bool:
     w = word.lower()
-    return w in _AUX or (w.isalpha() and len(w) > 3 and w.endswith(("s", "ed")) and not w.endswith("ss")
-                         and w not in {"this", "its", "thus", "always", "towards"})
+    return w in _AUX or (
+        w.isalpha()
+        and len(w) > 3
+        and w.endswith(("s", "ed"))
+        and not w.endswith("ss")
+        and w not in {"this", "its", "thus", "always", "towards"}
+    )
 
 
 def _subject(sentence: str) -> str | None:
@@ -51,7 +93,7 @@ def _subject(sentence: str) -> str | None:
     for i in range(first, min(len(words), 7)):
         w = words[i].strip(",")
         if w.endswith("ly") and w.lower() not in _AUX:
-            adverb_at = adverb_at or i          # 'policy only evicts' -> stop before 'only'
+            adverb_at = adverb_at or i  # 'policy only evicts' -> stop before 'only'
             continue
         if w.lower() in _AUX or (_verbish(w) and words[i - 1].lower() not in _DET):
             return " ".join(words[: adverb_at or i]).strip(",")
@@ -79,7 +121,7 @@ class PropositionalChunker:
 
     def split(self, text: str) -> list[Chunk]:
         # Code blocks and tables aren't prose facts: skip them (and save model calls).
-        spans = [sp for sp in sentence_spans(text) if not _is_structured(text[sp[0]:sp[1]])]
+        spans = [sp for sp in sentence_spans(text) if not _is_structured(text[sp[0] : sp[1]])]
         chunks: list[Chunk] = []
         subject = None
         for i in range(0, len(spans), self.passage_sentences):
@@ -100,8 +142,7 @@ class PropositionalChunker:
                 mode = "rule-based" if not self.llm else "rule-based (llm reply unusable)"
             events.emit("propositional.passage", start=a, end=b, propositions=props, mode=mode)
             for p in props:
-                chunks.append(Chunk(p, a, b, {"strategy": "propositional", "mode": mode,
-                                              "source_passage": passage}))
+                chunks.append(Chunk(p, a, b, {"strategy": "propositional", "mode": mode, "source_passage": passage}))
         return chunks
 
     def _ask(self, passage: str) -> list[str]:
@@ -120,7 +161,7 @@ class PropositionalChunker:
         props = []
         for s in sentences:
             if "```" in s or any(ln.lstrip().startswith("|") for ln in s.splitlines()):
-                continue                         # code and tables aren't prose facts
+                continue  # code and tables aren't prose facts
             lines = [ln for ln in s.splitlines() if not ln.lstrip().startswith("#")]
             s = " ".join(" ".join(lines).split())
             if not s:
@@ -135,7 +176,7 @@ class PropositionalChunker:
                     poss = part.split()[0].lower() in ("its", "their")
                     part = re.sub(r"^\w+", subject + ("'s" if poss else ""), part, count=1)
                 elif k > 0 and own and _verbish(part.split()[0]):
-                    part = f"{own} {part}"          # "... and supports X" -> "Redis supports X"
+                    part = f"{own} {part}"  # "... and supports X" -> "Redis supports X"
                 part = part[0].upper() + part[1:]
                 props.append(part if part.endswith((".", "!", "?")) else part + ".")
         return props, subject

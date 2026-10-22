@@ -1,4 +1,5 @@
 """Health, stability and state tracking for the web UI (framework-free, thread-safe)."""
+
 from __future__ import annotations
 
 import os
@@ -34,7 +35,7 @@ class Metrics:
     def __init__(self):
         self.lock = threading.Lock()
         self.calls: deque[dict] = deque(maxlen=20000)
-        self.marks: deque[dict] = deque(maxlen=5000)   # retries, failures, fallbacks
+        self.marks: deque[dict] = deque(maxlen=5000)  # retries, failures, fallbacks
         self.cache = {"hits": 0, "misses": 0}
         self.totals = {"embed": 0, "llm": 0, "errors": 0, "retries": 0, "json_failures": 0, "fallbacks": 0}
 
@@ -43,9 +44,18 @@ class Metrics:
         with self.lock:
             if t in ("embed.call", "llm.call"):
                 op = t.split(".")[0]
-                self.calls.append({"ts": ev["ts"], "op": op, "backend": ev.get("backend", "?"),
-                                   "ms": ev.get("ms", 0.0), "ok": ev.get("ok", True), "error": ev.get("error"),
-                                   "tps": ev.get("tokens_per_s"), "probe": ev.get("run") == "probe"})
+                self.calls.append(
+                    {
+                        "ts": ev["ts"],
+                        "op": op,
+                        "backend": ev.get("backend", "?"),
+                        "ms": ev.get("ms", 0.0),
+                        "ok": ev.get("ok", True),
+                        "error": ev.get("error"),
+                        "tps": ev.get("tokens_per_s"),
+                        "probe": ev.get("run") == "probe",
+                    }
+                )
                 self.totals[op] += 1
                 if not ev.get("ok", True):
                     self.totals["errors"] += 1
@@ -66,9 +76,12 @@ class Metrics:
         tps = [r["tps"] for r in recent if r.get("tps")]
         last_err = next((r for r in reversed(rows) if not r["ok"]), None)
         return {
-            "calls_5m": len(recent), "errors_5m": len(errs),
+            "calls_5m": len(recent),
+            "errors_5m": len(errs),
             "error_rate_5m": round(len(errs) / len(recent), 4) if recent else 0.0,
-            "p50": pct(ms, 50), "p95": pct(ms, 95), "p99": pct(ms, 99),
+            "p50": pct(ms, 50),
+            "p95": pct(ms, 95),
+            "p99": pct(ms, 99),
             "mean": round(mean, 2) if mean else None,
             "jitter_cv": round(cv, 3) if cv is not None else None,
             "tokens_per_s": round(statistics.fmean(tps), 1) if tps else None,
@@ -88,8 +101,9 @@ class Metrics:
 
         start = now - self.WINDOW
         n = self.WINDOW // self.BUCKET
-        buckets = [{"t": round(start + i * self.BUCKET, 1), "embed": [], "llm": [], "err": 0, "calls": 0}
-                   for i in range(n)]
+        buckets = [
+            {"t": round(start + i * self.BUCKET, 1), "embed": [], "llm": [], "err": 0, "calls": 0} for i in range(n)
+        ]
         for c in work:
             i = min(n - 1, int((c["ts"] - start) // self.BUCKET))
             b = buckets[i]
@@ -98,23 +112,38 @@ class Metrics:
                 b[c["op"]].append(c["ms"])
             else:
                 b["err"] += 1
-        series = [{"t": b["t"], "calls": b["calls"], "errors": b["err"],
-                   "embed_p50": pct(b["embed"], 50), "embed_p95": pct(b["embed"], 95),
-                   "llm_p50": pct(b["llm"], 50), "llm_p95": pct(b["llm"], 95)} for b in buckets]
+        series = [
+            {
+                "t": b["t"],
+                "calls": b["calls"],
+                "errors": b["err"],
+                "embed_p50": pct(b["embed"], 50),
+                "embed_p95": pct(b["embed"], 95),
+                "llm_p50": pct(b["llm"], 50),
+                "llm_p95": pct(b["llm"], 95),
+            }
+            for b in buckets
+        ]
 
         recent_marks = [m for m in marks if now - m["ts"] <= 300]
         llm_calls = ops["llm"]["calls_5m"]
         looked_up = cache["hits"] + cache["misses"]
         return {
-            "ts": now, "ops": ops, "series": series, "totals": totals,
+            "ts": now,
+            "ops": ops,
+            "series": series,
+            "totals": totals,
             "cache": dict(cache, hit_rate=round(cache["hits"] / looked_up, 4) if looked_up else None),
             "stability": {
                 "retries_5m": sum(m["kind"] == "retries" for m in recent_marks),
                 "fallbacks_5m": sum(m["kind"] == "fallbacks" for m in recent_marks),
                 "json_failures_5m": sum(m["kind"] == "json_failures" for m in recent_marks),
-                "retry_rate": round(sum(m["kind"] == "retries" for m in recent_marks) / llm_calls, 4) if llm_calls else None,
-                "error_rate_5m": round(sum(o["errors_5m"] for o in ops.values()) /
-                                       max(1, sum(o["calls_5m"] for o in ops.values())), 4),
+                "retry_rate": round(sum(m["kind"] == "retries" for m in recent_marks) / llm_calls, 4)
+                if llm_calls
+                else None,
+                "error_rate_5m": round(
+                    sum(o["errors_5m"] for o in ops.values()) / max(1, sum(o["calls_5m"] for o in ops.values())), 4
+                ),
             },
         }
 
@@ -134,8 +163,7 @@ class HealthMonitor:
         self._embed_probe = self._llm_probe = None
         self._last_embed_probe = self._last_llm_probe = 0.0
         self._probe_results: dict[str, dict] = {}
-        self.history: dict[str, deque] = {k: deque(maxlen=150) for k in
-                                          ("ollama", "embedder", "llm", "overall")}
+        self.history: dict[str, deque] = {k: deque(maxlen=150) for k in ("ollama", "embedder", "llm", "overall")}
         self.transitions: deque = deque(maxlen=500)
         self.started = time.time()
         self._cpu = (time.process_time(), time.time())
@@ -190,22 +218,40 @@ class HealthMonitor:
         try:
             version = client.version()
         except ollama.OllamaError as e:
-            return {"status": "down" if self._uses_ollama() else "off", "host": client.host,
-                    "error": str(e).splitlines()[0], "required": self._uses_ollama()}
+            return {
+                "status": "down" if self._uses_ollama() else "off",
+                "host": client.host,
+                "error": str(e).splitlines()[0],
+                "required": self._uses_ollama(),
+            }
         ping = round((time.perf_counter() - t0) * 1000, 1)
         loaded, installed = [], []
         try:
             for m in client.get("/api/ps").get("models", []):
-                loaded.append({"name": m.get("name"), "size": m.get("size"), "size_vram": m.get("size_vram", 0),
-                               "expires_at": m.get("expires_at"), "context_length": m.get("context_length"),
-                               "quant": (m.get("details") or {}).get("quantization_level"),
-                               "params": (m.get("details") or {}).get("parameter_size")})
+                loaded.append(
+                    {
+                        "name": m.get("name"),
+                        "size": m.get("size"),
+                        "size_vram": m.get("size_vram", 0),
+                        "expires_at": m.get("expires_at"),
+                        "context_length": m.get("context_length"),
+                        "quant": (m.get("details") or {}).get("quantization_level"),
+                        "params": (m.get("details") or {}).get("parameter_size"),
+                    }
+                )
             installed = client.list_models()
         except ollama.OllamaError:
             pass  # the ping worked; model lists are best-effort and stay empty
         status = "ok" if ping < 250 else "degraded"
-        return {"status": status, "host": client.host, "version": version, "ping_ms": ping,
-                "loaded": loaded, "installed": installed, "required": self._uses_ollama()}
+        return {
+            "status": status,
+            "host": client.host,
+            "version": version,
+            "ping_ms": ping,
+            "loaded": loaded,
+            "installed": installed,
+            "required": self._uses_ollama(),
+        }
 
     def _probe_embedder(self, now: float) -> dict[str, Any]:
         spec = self.embed_spec
@@ -215,12 +261,21 @@ class HealthMonitor:
         res: dict[str, Any] = {"spec": spec}
         try:
             if self._embed_probe is None:
-                self._embed_probe = get_embedder(spec, cache=False, **({"host": self.host} if self.host and spec.startswith(("ollama", "auto")) else {}))
+                self._embed_probe = get_embedder(
+                    spec,
+                    cache=False,
+                    **({"host": self.host} if self.host and spec.startswith(("ollama", "auto")) else {}),
+                )
             t0 = time.perf_counter()
             vec = self._embed_probe([f"health probe {int(now)}"])[0]
             ms = round((time.perf_counter() - t0) * 1000, 1)
-            res.update(name=getattr(self._embed_probe, "name", spec), dim=len(vec), probe_ms=ms,
-                       status="ok" if ms < 2000 else "degraded", probed_at=now)
+            res.update(
+                name=getattr(self._embed_probe, "name", spec),
+                dim=len(vec),
+                probe_ms=ms,
+                status="ok" if ms < 2000 else "degraded",
+                probed_at=now,
+            )
         except Exception as e:
             res.update(status="down", error=str(e).splitlines()[0], probed_at=now)
             self._embed_probe = None
@@ -237,7 +292,9 @@ class HealthMonitor:
         res: dict[str, Any] = {"spec": spec}
         try:
             if self._llm_probe is None:
-                self._llm_probe = get_llm(spec, **({"host": self.host} if self.host and spec.startswith(("ollama", "auto")) else {}))
+                self._llm_probe = get_llm(
+                    spec, **({"host": self.host} if self.host and spec.startswith(("ollama", "auto")) else {})
+                )
                 if self._llm_probe is None:
                     raise RuntimeError("no LLM available for 'auto'")
                 if hasattr(self._llm_probe, "options"):
@@ -245,8 +302,13 @@ class HealthMonitor:
             t0 = time.perf_counter()
             reply = self._llm_probe("Reply with the single word OK.")
             ms = round((time.perf_counter() - t0) * 1000, 1)
-            res.update(name=getattr(self._llm_probe, "name", spec), probe_ms=ms, reply=reply[:20],
-                       status="ok" if ms < 8000 else "degraded", probed_at=now)
+            res.update(
+                name=getattr(self._llm_probe, "name", spec),
+                probe_ms=ms,
+                reply=reply[:20],
+                status="ok" if ms < 8000 else "degraded",
+                probed_at=now,
+            )
         except Exception as e:
             res.update(status="down", error=str(e).splitlines()[0], probed_at=now)
             self._llm_probe = None
@@ -261,10 +323,19 @@ class HealthMonitor:
             if provider not in ("deepinfra", "openai"):
                 continue
             o = m["ops"][op]
-            out.append({"kind": kind, "provider": {"deepinfra": "DeepInfra", "openai": "OpenAI"}[provider],
-                        "model": model or comp.get("name", spec), "status": comp.get("status"),
-                        "dim": comp.get("dim"), "probe_ms": comp.get("probe_ms"), "p95": o["p95"],
-                        "calls_5m": o["calls_5m"], "tokens_per_s": o.get("tokens_per_s")})
+            out.append(
+                {
+                    "kind": kind,
+                    "provider": {"deepinfra": "DeepInfra", "openai": "OpenAI"}[provider],
+                    "model": model or comp.get("name", spec),
+                    "status": comp.get("status"),
+                    "dim": comp.get("dim"),
+                    "probe_ms": comp.get("probe_ms"),
+                    "p95": o["p95"],
+                    "calls_5m": o["calls_5m"],
+                    "tokens_per_s": o.get("tokens_per_s"),
+                }
+            )
         return out
 
     def _cache(self) -> dict[str, Any]:
@@ -292,15 +363,24 @@ class HealthMonitor:
                         rss = int(line.split()[1]) / 1024
         except OSError:
             import resource
-            rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / (1024 if os.uname().sysname == "Linux" else 1024 * 1024)
+
+            rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / (
+                1024 if os.uname().sysname == "Linux" else 1024 * 1024
+            )
         cpu_t, wall = time.process_time(), now
         prev_cpu, prev_wall = self._cpu
         self._cpu = (cpu_t, wall)
         cpu_pct = 100 * (cpu_t - prev_cpu) / max(1e-6, wall - prev_wall)
         load = os.getloadavg() if hasattr(os, "getloadavg") else (None, None, None)
-        return {"status": "ok", "rss_mb": round(rss, 1) if rss else None, "cpu_pct": round(cpu_pct, 1),
-                "threads": threading.active_count(), "load": [round(x, 2) if x is not None else None for x in load],
-                "cpus": os.cpu_count(), "uptime_s": round(now - self.started)}
+        return {
+            "status": "ok",
+            "rss_mb": round(rss, 1) if rss else None,
+            "cpu_pct": round(cpu_pct, 1),
+            "threads": threading.active_count(),
+            "load": [round(x, 2) if x is not None else None for x in load],
+            "cpus": os.cpu_count(),
+            "uptime_s": round(now - self.started),
+        }
 
     # -- aggregation ------------------------------------------------------------------------
     def _collect(self) -> dict[str, Any]:
@@ -350,10 +430,20 @@ class HealthMonitor:
         proc = self._process(now)
         if not worker.get("alive", True):
             worker["status"] = "down"
-        components = {"ollama": oll, "embedder": emb, "llm": llm, "cache": cache, "worker": worker, "process": proc,
-                      "hosted": self._hosted(emb, llm, m)}
-        required = ["embedder", "worker"] + (["ollama"] if oll.get("required") else []) + \
-                   (["llm"] if llm.get("status") != "off" else [])
+        components = {
+            "ollama": oll,
+            "embedder": emb,
+            "llm": llm,
+            "cache": cache,
+            "worker": worker,
+            "process": proc,
+            "hosted": self._hosted(emb, llm, m),
+        }
+        required = (
+            ["embedder", "worker"]
+            + (["ollama"] if oll.get("required") else [])
+            + (["llm"] if llm.get("status") != "off" else [])
+        )
         overall = max((components[k].get("status", "ok") for k in required), key=lambda s: RANK.get(s, 0))
 
         prev = self.history["overall"][-1]["s"] if self.history["overall"] else None
@@ -368,9 +458,14 @@ class HealthMonitor:
         ok_share = sum(h["s"] in ("ok", "off") for h in window) / len(window) if window else 1.0
         flaps = sum(1 for t in self.transitions if now - t["ts"] <= 600)
         return {
-            "ts": now, "overall": overall, "components": components,
+            "ts": now,
+            "overall": overall,
+            "components": components,
             "history": {k: list(v) for k, v in self.history.items()},
-            "stability": {"healthy_share_5m": round(ok_share, 4), "status_changes_10m": flaps,
-                          "transitions": list(self.transitions)[-20:]},
+            "stability": {
+                "healthy_share_5m": round(ok_share, 4),
+                "status_changes_10m": flaps,
+                "transitions": list(self.transitions)[-20:],
+            },
             "settings": {"embed": self.embed_spec, "llm": self.llm_spec},
         }
