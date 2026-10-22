@@ -1,0 +1,31 @@
+# CodeRabbit review settings. Reference: https://docs.coderabbit.ai/guides/configure-coderabbit
+language: "en-US"
+reviews:
+  profile: "chill"
+  poem: false
+  high_level_summary: true
+  auto_review:
+    enabled: true
+    drafts: false
+  path_filters:
+    - "!docs/**"
+    - "!**/*.png"
+  path_instructions:
+    - path: "chunking/**"
+      instructions: |
+        - The core package is standard-library only (`dependencies = []`). Flag any new third-party import that is not lazy and optional.
+        - Python 3.13+ only: use `list[str]`, `X | None` and `collections.abc`; flag compatibility shims for older versions.
+        - Model-dependent code must keep an offline fallback (see AgenticChunker, PropositionalChunker, HashingEmbedder).
+        - Chunks that re-slice the source must check `text[start:end] == chunk.text`, since document and propositional chunks do not satisfy it.
+        - A new chunking strategy must be registered in `STRATEGIES` and constructed in `demo.py:build()` and `webui/runner.py:_build()`.
+    - path: "webui/**"
+      instructions: |
+        - Check API, setting, limit and CORS changes against the internet-facing `--public` mode (size/queue caps, fixed backends, cancel tokens, LLM spend guard).
+        - The frontend is plain HTML/JS/SVG with no build step; do not suggest adding a bundler or framework.
+    - path: "tests/**"
+      instructions: |
+        - Tests use `unittest`, not pytest.
+        - Backend tests use fake in-process HTTP servers, not mocks, and must close sockets and files (CI runs with `-W error::ResourceWarning`).
+        - Tests must not need API keys, and must use a temporary `CHUNKING_CACHE_DIR`.
+chat:
+  auto_reply: true
