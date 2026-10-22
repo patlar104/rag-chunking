@@ -16,6 +16,7 @@ python -m unittest discover -s tests          # full suite (tests needing extras
 python -m unittest tests.test_chunkers        # one module
 python -m unittest tests.test_chunkers.Recursive.test_name   # one test (classes are plain TestCases, e.g. FixedSize, Recursive, Document)
 ruff check .                                  # lint (CI also runs: node --check webui/static/app.js)
+ruff format .                                 # format Python (CI runs `ruff format --check .`; Markdown is excluded)
 
 python demo.py --compare                      # offline comparison table on sample.md
 python demo.py --doctor                       # which real backends are detected

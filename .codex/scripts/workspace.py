@@ -69,6 +69,7 @@ def main() -> int:
             result = run([PYTHON, "-B", "-m", "webui.server"], env)
         else:
             results = [run([PYTHON, "-B", "-m", "ruff", "check", ".", ".codex/scripts"], env)]
+            results.append(run([PYTHON, "-B", "-m", "ruff", "format", "--check", "."], env))
             node = shutil.which("node")
             if node:
                 results.append(run([node, "--check", "webui/static/app.js"], env))

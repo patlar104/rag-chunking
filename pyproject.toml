@@ -49,6 +49,9 @@ target-version = "py313"
 line-length = 120
 extend-exclude = ["docs"]
 
+[tool.ruff.format]
+exclude = ["*.md"]   # format Python files only, not the code blocks in README.md
+
 [tool.ruff.lint]
 select = ["E9", "F", "B", "UP", "I"]
 ignore = ["B008", "B905"]
