@@ -24,4 +24,4 @@ A strategy is not finished when `STRATEGIES` has an entry. Two `_build` function
 
 ## Verify
 
-Use `$check`, then `python demo.py --compare` and confirm the new row differs from `agentic` (the fall-through bug shows up as identical numbers). With the web extras installed, also run `python -m unittest tests.test_webui tests.test_public_mode`.
+Use the repo check (`/check` in Claude Code, `$check` in Codex), then `python demo.py --compare` and confirm the new row differs from `agentic` (the fall-through bug shows up as identical numbers). With the web extras installed, also run `python -m unittest tests.test_webui tests.test_public_mode`.

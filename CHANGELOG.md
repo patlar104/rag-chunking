@@ -14,6 +14,9 @@ To cut a release, move the **Unreleased** items into a new version section, bump
 - `.coderabbit.yaml` with review settings for CodeRabbit, including path instructions for the stdlib-only core, `--public` mode and the test conventions.
 - Issue forms for bug reports and feature requests, a label set in `.github/labels.json`, and a `Repo metadata` workflow that syncs those labels and creates the `v0.5.1` and `v0.6.0` milestones when merged to `main`.
 
+### Changed
+- The `add-backend` and `add-chunking-strategy` skills now have a single copy in `.agents/skills/`; `.claude/skills/` links to it, so the Claude Code and Codex versions can no longer drift apart.
+
 ## [0.5.0] - 2026-10-20
 
 ### Changed
