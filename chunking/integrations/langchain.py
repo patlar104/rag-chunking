@@ -19,6 +19,7 @@ Or use this package's embedders (Ollama, sentence-transformers, cache) inside La
     from chunking.integrations.langchain import ChunkingEmbeddings
     store = InMemoryVectorStore(ChunkingEmbeddings("ollama:nomic-embed-text", cache=True))
 """
+
 from __future__ import annotations
 
 import copy
@@ -40,6 +41,7 @@ __all__ = ["ChunkingTextSplitter", "ChunkingEmbeddings", "LangChainEmbedder", "L
 
 
 # -- LangChain models -> chunking backends ------------------------------------------------
+
 
 class LangChainEmbedder:
     """Wrap a LangChain `Embeddings` so the semantic chunker can use it."""
@@ -74,9 +76,10 @@ class LangChainLLM:
 def _as_embedder(embeddings):
     embeddings = resolve_embedder(embeddings)
     if isinstance(embeddings, ChunkingEmbeddings):
-        return embeddings.embedder          # already one of ours: skip the round trip
+        return embeddings.embedder  # already one of ours: skip the round trip
     if isinstance(embeddings, Embeddings) or (
-            hasattr(embeddings, "embed_documents") and hasattr(embeddings, "embed_query")):
+        hasattr(embeddings, "embed_documents") and hasattr(embeddings, "embed_query")
+    ):
         return LangChainEmbedder(embeddings)
     return embeddings
 
@@ -89,6 +92,7 @@ def _as_llm(llm):
 
 
 # -- chunkers -> LangChain text splitter -----------------------------------------------------
+
 
 class ChunkingTextSplitter(TextSplitter):
     """A LangChain `TextSplitter` backed by any strategy in this package.
@@ -105,11 +109,19 @@ class ChunkingTextSplitter(TextSplitter):
         **chunker_kwargs: forwarded to the chunker, e.g. chunk_size=200 or max_tokens=300.
     """
 
-    def __init__(self, strategy: str = "recursive", *, chunker=None, embeddings=None, llm=None,
-                 overlap_tokens: int = 0, add_start_index: bool = True, flatten_metadata: bool = True,
-                 **chunker_kwargs: Any):
-        super().__init__(chunk_size=10 ** 9, chunk_overlap=0, add_start_index=add_start_index,
-                         strip_whitespace=False)
+    def __init__(
+        self,
+        strategy: str = "recursive",
+        *,
+        chunker=None,
+        embeddings=None,
+        llm=None,
+        overlap_tokens: int = 0,
+        add_start_index: bool = True,
+        flatten_metadata: bool = True,
+        **chunker_kwargs: Any,
+    ):
+        super().__init__(chunk_size=10**9, chunk_overlap=0, add_start_index=add_start_index, strip_whitespace=False)
         self.strategy = strategy
         self.chunker = build_chunker(strategy, chunker, _as_embedder(embeddings), _as_llm(llm), **chunker_kwargs)
         self.overlap_tokens = overlap_tokens
@@ -143,6 +155,7 @@ class ChunkingTextSplitter(TextSplitter):
 
 
 # -- chunking embedders -> LangChain Embeddings ------------------------------------------------
+
 
 class ChunkingEmbeddings(Embeddings):
     """Expose this package's embedders (Ollama with correct prefixes, sentence-transformers,

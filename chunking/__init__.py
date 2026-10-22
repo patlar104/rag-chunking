@@ -1,10 +1,11 @@
 """Six production chunking strategies for RAG, plus the sliding-window overlap fix.
 
-    from chunking import get_chunker, get_embedder, get_llm, with_overlap
-    chunks = get_chunker("recursive", chunk_size=120).split(text)
-    chunks = get_chunker("semantic", embed=get_embedder("ollama:nomic-embed-text")).split(text)
-    chunks = get_chunker("agentic", llm=get_llm("ollama:llama3.2:3b")).split(text)
+from chunking import get_chunker, get_embedder, get_llm, with_overlap
+chunks = get_chunker("recursive", chunk_size=120).split(text)
+chunks = get_chunker("semantic", embed=get_embedder("ollama:nomic-embed-text")).split(text)
+chunks = get_chunker("agentic", llm=get_llm("ollama:llama3.2:3b")).split(text)
 """
+
 import sys
 
 if sys.version_info < (3, 13):  # noqa: UP036 -- fail fast with a clear message instead of a confusing SyntaxError/TypeError
@@ -41,5 +42,15 @@ def get_chunker(name: str, **kwargs):
         raise ValueError(f"unknown strategy {name!r}; pick one of {sorted(STRATEGIES)}") from None
 
 
-__all__ = ["Chunk", "STRATEGIES", "get_chunker", "get_embedder", "get_llm", "with_overlap", "chunk_stats", "count_tokens",
-           "sentence_spans", *[c.__name__ for c in STRATEGIES.values()]]
+__all__ = [
+    "Chunk",
+    "STRATEGIES",
+    "get_chunker",
+    "get_embedder",
+    "get_llm",
+    "with_overlap",
+    "chunk_stats",
+    "count_tokens",
+    "sentence_spans",
+    *[c.__name__ for c in STRATEGIES.values()],
+]

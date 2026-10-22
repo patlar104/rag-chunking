@@ -1,4 +1,5 @@
 """Run with:  python -m unittest discover -s tests   (or: pytest)"""
+
 import json
 import sys
 import unittest
@@ -21,14 +22,16 @@ from chunking import (  # noqa: E402
 from chunking.llm import parse_json  # noqa: E402
 
 SAMPLE = (Path(__file__).resolve().parents[1] / "sample.md").read_text()
-PROSE = ("Cats are small mammals. They sleep for most of the day. Cats groom themselves often. "
-         "Rust is a systems programming language. It guarantees memory safety without a garbage collector. "
-         "Rust programs compile to native code. The Rust borrow checker enforces ownership rules.")
+PROSE = (
+    "Cats are small mammals. They sleep for most of the day. Cats groom themselves often. "
+    "Rust is a systems programming language. It guarantees memory safety without a garbage collector. "
+    "Rust programs compile to native code. The Rust borrow checker enforces ownership rules."
+)
 
 
 def offsets_ok(tc, text, chunks):
     for c in chunks:
-        tc.assertEqual(text[c.start:c.end], c.text, f"offsets don't match text for {c!r}")
+        tc.assertEqual(text[c.start : c.end], c.text, f"offsets don't match text for {c!r}")
 
 
 class FixedSize(unittest.TestCase):
@@ -76,9 +79,9 @@ class Document(unittest.TestCase):
         tables = [c for c in chunks if "table" in c.metadata["blocks"]]
         code = [c for c in chunks if "code" in c.metadata["blocks"]]
         self.assertEqual(len(tables), 1)
-        self.assertEqual(tables[0].text.count("| Ready"), 3)       # all rows together
+        self.assertEqual(tables[0].text.count("| Ready"), 3)  # all rows together
         self.assertIn("docker run", code[0].text)
-        self.assertIn("redis-cli ping", code[0].text)              # whole code block
+        self.assertIn("redis-cli ping", code[0].text)  # whole code block
 
     def test_heading_path(self):
         chunks = MarkdownChunker().split(SAMPLE)
@@ -100,8 +103,11 @@ class Semantic(unittest.TestCase):
 
     def test_custom_embedder(self):
         def embed(texts):  # 2-D toy embedding: is this about cats or rust?
-            return [[t.lower().count("cat") + t.count("They"), t.lower().count("rust") + t.count("It ")
-                     + t.count("borrow")] for t in texts]
+            return [
+                [t.lower().count("cat") + t.count("They"), t.lower().count("rust") + t.count("It ") + t.count("borrow")]
+                for t in texts
+            ]
+
         chunks = SemanticChunker(embed=embed, buffer=0, min_sentences=1).split(PROSE)
         self.assertEqual(len(chunks), 2)
         self.assertTrue(chunks[1].text.startswith("Rust is"))
@@ -109,8 +115,10 @@ class Semantic(unittest.TestCase):
 
 class Propositional(unittest.TestCase):
     def test_rule_based_resolves_pronouns(self):
-        props = [c.text for c in PropositionalChunker().split(
-            "Redis is fast. It stores data in RAM, and it supports many types.")]
+        props = [
+            c.text
+            for c in PropositionalChunker().split("Redis is fast. It stores data in RAM, and it supports many types.")
+        ]
         self.assertEqual(props, ["Redis is fast.", "Redis stores data in RAM.", "Redis supports many types."])
 
     def test_with_llm(self):
@@ -135,6 +143,7 @@ class Agentic(unittest.TestCase):
         def fake(prompt):
             new = "Rust is" in prompt.split("Next sentence:")[1]
             return json.dumps({"boundary": new, "title": "Rust" if "Rust" in prompt else "Cats"})
+
         chunks = AgenticChunker(llm=fake).split(PROSE)
         self.assertEqual([c.metadata["title"] for c in chunks], ["Cats", "Rust"])
 
@@ -143,8 +152,13 @@ class Agentic(unittest.TestCase):
         self.assertEqual(len(chunks), 1)
 
     def test_max_tokens(self):
-        self.assertTrue(all(c.tokens <= 30 for c in AgenticChunker(max_tokens=30).split(SAMPLE)
-                            if "```" not in c.text and "|" not in c.text))
+        self.assertTrue(
+            all(
+                c.tokens <= 30
+                for c in AgenticChunker(max_tokens=30).split(SAMPLE)
+                if "```" not in c.text and "|" not in c.text
+            )
+        )
 
 
 class Helpers(unittest.TestCase):

@@ -2,6 +2,7 @@
 
 Host resolution: explicit `host` argument > $OLLAMA_HOST > http://localhost:11434
 """
+
 from __future__ import annotations
 
 import json
@@ -50,8 +51,9 @@ class Client:
     # -- transport -------------------------------------------------------------
     def _request(self, method: str, path: str, body: dict | None = None, timeout=None):
         data = json.dumps(body).encode() if body is not None else None
-        req = urllib.request.Request(self.host + path, data=data, method=method,
-                                     headers={"Content-Type": "application/json"})
+        req = urllib.request.Request(
+            self.host + path, data=data, method=method, headers={"Content-Type": "application/json"}
+        )
         try:
             return urllib.request.urlopen(req, timeout=timeout or self.timeout)
         except urllib.error.HTTPError as e:
@@ -63,15 +65,17 @@ class Client:
                 msg = raw
             model = (body or {}).get("model", "")
             if e.code == 404 and "not found" in msg and model and "page not found" not in msg:
-                raise ModelNotFound(f"Ollama model {model!r} is not installed. Run:\n"
-                                    f"  ollama pull {model}") from None
+                raise ModelNotFound(f"Ollama model {model!r} is not installed. Run:\n  ollama pull {model}") from None
             if e.code == 404:
-                raise EndpointMissing(f"{path} not available on this Ollama server ({msg.strip()}). "
-                                      "Try updating Ollama.") from None
+                raise EndpointMissing(
+                    f"{path} not available on this Ollama server ({msg.strip()}). Try updating Ollama."
+                ) from None
             if e.code == 400 and "does not support" in msg:
-                raise OllamaError(f"{model!r} can't do this: {msg}. "
-                                  "(Embedding models can't chat and chat models can't embed, "
-                                  "pick the right kind.)") from None
+                raise OllamaError(
+                    f"{model!r} can't do this: {msg}. "
+                    "(Embedding models can't chat and chat models can't embed, "
+                    "pick the right kind.)"
+                ) from None
             raise OllamaError(f"Ollama {e.code} on {path}: {msg}") from None
         except (urllib.error.URLError, ConnectionError, TimeoutError) as e:
             reason = getattr(e, "reason", e)
@@ -79,7 +83,8 @@ class Client:
                 f"Can't reach Ollama at {self.host} ({reason}).\n"
                 "  Install: https://ollama.com/download\n"
                 "  Start:   ollama serve\n"
-                "  Or set OLLAMA_HOST if it runs elsewhere.") from None
+                "  Or set OLLAMA_HOST if it runs elsewhere."
+            ) from None
 
     def post(self, path: str, body: dict) -> dict:
         with self._request("POST", path, body) as r:

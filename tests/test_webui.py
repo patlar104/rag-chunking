@@ -1,4 +1,5 @@
 """Web UI backend tests: metrics, stability scoring, worker, API (offline, no Ollama needed)."""
+
 import json
 import sys
 import time
@@ -12,6 +13,7 @@ from chunking import events  # noqa: E402
 try:
     import fastapi  # noqa: F401
     import httpx  # noqa: F401
+
     HAVE_WEB = True
 except ImportError:
     HAVE_WEB = False
@@ -32,14 +34,16 @@ def wait_for(pred, timeout=10.0):
 class MonitorPieces(unittest.TestCase):
     def test_boundary_agreement(self):
         from webui.runner import boundary_agreement
+
         self.assertEqual(boundary_agreement([100, 200], [100, 200]), 1.0)
-        self.assertEqual(boundary_agreement([100, 200], [110, 190]), 1.0)   # within tolerance
+        self.assertEqual(boundary_agreement([100, 200], [110, 190]), 1.0)  # within tolerance
         self.assertEqual(boundary_agreement([100, 200], [500]), 0.0)
         self.assertAlmostEqual(boundary_agreement([100, 200], [100]), 0.6667, places=3)
         self.assertEqual(boundary_agreement([], []), 1.0)
 
     def test_metrics_percentiles_errors_and_stability(self):
         from webui.monitor import Metrics
+
         m = Metrics()
         now = time.time()
         for ms in [10, 20, 30, 40, 1000]:
@@ -54,7 +58,7 @@ class MonitorPieces(unittest.TestCase):
         self.assertEqual((llm["calls_5m"], llm["errors_5m"]), (6, 1))
         self.assertEqual(llm["p50"], 30)
         self.assertEqual(llm["last_error"]["error"], "boom")
-        self.assertEqual(s["ops"]["embed"]["calls_5m"], 0)        # health probes don't pollute work metrics
+        self.assertEqual(s["ops"]["embed"]["calls_5m"], 0)  # health probes don't pollute work metrics
         self.assertEqual(s["cache"]["hit_rate"], 0.75)
         self.assertEqual((s["stability"]["retries_5m"], s["stability"]["fallbacks_5m"]), (1, 1))
         self.assertEqual(len(s["series"]), 120)
@@ -62,6 +66,7 @@ class MonitorPieces(unittest.TestCase):
 
     def test_runner_runs_cancels_and_reports(self):
         from webui.runner import Runner
+
         published = []
         r = Runner(lambda kind, data: published.append(kind))
         run = r.submit(SAMPLE, ["fixed", "document", "semantic", "agentic"], 60, 10, "hashing", "none", True)
@@ -89,6 +94,7 @@ class Api(unittest.TestCase):
         from fastapi.testclient import TestClient
 
         from webui import server
+
         cls.server = server
         cls.cm = TestClient(server.app)
         cls.client = cls.cm.__enter__()
@@ -109,7 +115,7 @@ class Api(unittest.TestCase):
         self.assertTrue(wait_for(lambda: self.server.monitor.snapshot.get("overall") is not None))
         h = self.client.get("/api/health").json()
         self.assertEqual(set(h["components"]), {"ollama", "embedder", "llm", "cache", "worker", "process", "hosted"})
-        self.assertEqual(h["components"]["embedder"]["status"], "ok")   # hashing embedder always works
+        self.assertEqual(h["components"]["embedder"]["status"], "ok")  # hashing embedder always works
         self.assertEqual(h["components"]["llm"]["status"], "off")
 
     def test_run_lifecycle_and_live_trace(self):
@@ -119,14 +125,16 @@ class Api(unittest.TestCase):
         self.assertTrue(wait_for(lambda: self.client.get(f"/api/runs/{rid}").json()["status"] == "done"))
         d = self.client.get(f"/api/runs/{rid}").json()
         self.assertGreater(d["results"]["agentic"]["stats"]["chunks"], 2)
-        self.assertGreater(len(d["live"]["agentic"]["decisions"]), 5)     # late viewers can replay
+        self.assertGreater(len(d["live"]["agentic"]["decisions"]), 5)  # late viewers can replay
         self.assertTrue(any(x["id"] == rid for x in self.client.get("/api/runs").json()))
         self.assertGreater(self.client.get("/api/metrics").json()["totals"]["embed"], -1)
 
     def test_errors_are_4xx(self):
         self.assertEqual(self.client.post("/api/runs", json={"text": "x", "strategies": ["bogus"]}).status_code, 400)
         self.assertEqual(self.client.post("/api/runs", json={"text": "  ", "strategies": ["fixed"]}).status_code, 400)
-        self.assertEqual(self.client.post("/api/runs", json={"text": "x", "strategies": ["fixed"], "size": 1}).status_code, 422)
+        self.assertEqual(
+            self.client.post("/api/runs", json={"text": "x", "strategies": ["fixed"], "size": 1}).status_code, 422
+        )
         self.assertEqual(self.client.get("/api/runs/nope").status_code, 404)
         self.assertEqual(self.client.post("/api/runs/nope/cancel").status_code, 409)
         self.assertEqual(self.client.post("/api/settings", json={"embed": "bogus:thing"}).status_code, 400)
@@ -141,9 +149,11 @@ class EventBus(unittest.TestCase):
         try:
             with events.timed("op", a=1) as info:
                 info["b"] = 2
+
             def failing_op():
                 with events.timed("op"):
                     raise RuntimeError("bad")
+
             self.assertRaises(RuntimeError, failing_op)
         finally:
             events.current_run.reset(token)

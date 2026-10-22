@@ -1,4 +1,5 @@
 """Background worker that runs chunking jobs and streams their progress."""
+
 from __future__ import annotations
 
 import itertools
@@ -46,9 +47,11 @@ class _Guard:
     def __getattr__(self, item):
         attr = getattr(self._inner, item)
         if callable(attr) and item in ("query", "complete_json"):
+
             def wrapped(*a, **k):
                 self._check()
                 return attr(*a, **k)
+
             return wrapped
         return attr
 
@@ -89,18 +92,33 @@ class Runner:
         self.thread.start()
 
     # -- public API ----------------------------------------------------------------------------
-    def submit(self, text: str, strategies: list[str], size: int, overlap: int, embed: str, llm: str,
-               stability: bool) -> dict:
+    def submit(
+        self, text: str, strategies: list[str], size: int, overlap: int, embed: str, llm: str, stability: bool
+    ) -> dict:
         bad = [s for s in strategies if s not in STRATEGIES]
         if bad or not strategies:
             raise ValueError(f"unknown strategies: {bad or 'none selected'}")
         if not text.strip():
             raise ValueError("document is empty")
         run_id = f"r{next(self.ids)}"
-        run = {"id": run_id, "status": "queued", "created": time.time(), "text": text,
-               "strategies": strategies, "size": size, "overlap": overlap, "embed": embed, "llm": llm,
-               "stability": stability, "results": {}, "error": None, "cancel": threading.Event(),
-               "started": None, "finished": None, "cancel_token": secrets.token_urlsafe(16)}
+        run = {
+            "id": run_id,
+            "status": "queued",
+            "created": time.time(),
+            "text": text,
+            "strategies": strategies,
+            "size": size,
+            "overlap": overlap,
+            "embed": embed,
+            "llm": llm,
+            "stability": stability,
+            "results": {},
+            "error": None,
+            "cancel": threading.Event(),
+            "started": None,
+            "finished": None,
+            "cancel_token": secrets.token_urlsafe(16),
+        }
         with self.lock:
             self.runs[run_id] = run
             self.order.append(run_id)
@@ -126,15 +144,37 @@ class Runner:
         cur = self.runs.get(self.current) if self.current else None
         queued = sum(1 for r in self.runs.values() if r["status"] == "queued")
         status = "ok" if queued <= 3 else "degraded"
-        return {"status": status, "alive": self.thread.is_alive(), "llm_budget": self.budget_state(),
-                "state": "running" if cur else "idle", "current": self.summary(cur) if cur else None,
-                "queued": queued, "completed": self.completed, "failed": self.failed}
+        return {
+            "status": status,
+            "alive": self.thread.is_alive(),
+            "llm_budget": self.budget_state(),
+            "state": "running" if cur else "idle",
+            "current": self.summary(cur) if cur else None,
+            "queued": queued,
+            "completed": self.completed,
+            "failed": self.failed,
+        }
 
     def summary(self, run: dict | None) -> dict | None:
         if not run:
             return None
-        return {k: run[k] for k in ("id", "status", "created", "started", "finished", "strategies", "size",
-                                     "overlap", "embed", "llm", "stability", "error")} | {
+        return {
+            k: run[k]
+            for k in (
+                "id",
+                "status",
+                "created",
+                "started",
+                "finished",
+                "strategies",
+                "size",
+                "overlap",
+                "embed",
+                "llm",
+                "stability",
+                "error",
+            )
+        } | {
             "progress": run.get("progress"),
             "done": [s for s, r in run["results"].items() if r.get("status") in ("done", "error")],
         }
@@ -235,12 +275,26 @@ class Runner:
             try:
                 chunks = self._chunks(name, text, run["size"], run["overlap"], embed, llm)
                 secs = time.perf_counter() - t0
-                res.update(status="done", seconds=round(secs, 6), stats=chunk_stats(text, chunks),
-                           chunks=[{"start": c.start, "end": c.end, "tokens": c.tokens,
-                                    "text": c.text if (c.start < 0 or text[c.start:c.end] != c.text) else None,
-                                    "meta": {k: v for k, v in c.metadata.items()
-                                             if k not in ("source_passage",) and isinstance(v, (str, int, float, bool, list, type(None)))}}
-                                   for c in chunks])
+                res.update(
+                    status="done",
+                    seconds=round(secs, 6),
+                    stats=chunk_stats(text, chunks),
+                    chunks=[
+                        {
+                            "start": c.start,
+                            "end": c.end,
+                            "tokens": c.tokens,
+                            "text": c.text if (c.start < 0 or text[c.start : c.end] != c.text) else None,
+                            "meta": {
+                                k: v
+                                for k, v in c.metadata.items()
+                                if k not in ("source_passage",)
+                                and isinstance(v, (str, int, float, bool, list, type(None)))
+                            },
+                        }
+                        for c in chunks
+                    ],
+                )
                 if run["stability"] and name != "propositional":
                     res["stability"] = self._stability(name, text, run, embed, llm, chunks)
             except Cancelled:
@@ -249,8 +303,11 @@ class Runner:
                 self.publish("strategy.finished", {"run": run["id"], "strategy": name, **res})
                 return
             except Exception as e:
-                res.update(status="error", error=f"{type(e).__name__}: {str(e).splitlines()[0] if str(e) else ''}",
-                           seconds=round(time.perf_counter() - t0, 3))
+                res.update(
+                    status="error",
+                    error=f"{type(e).__name__}: {str(e).splitlines()[0] if str(e) else ''}",
+                    seconds=round(time.perf_counter() - t0, 3),
+                )
             self.publish("strategy.finished", {"run": run["id"], "strategy": name, **res})
         errors = [r for r in run["results"].values() if r.get("status") == "error"]
         run["status"] = "error" if errors and len(errors) == n else "done"

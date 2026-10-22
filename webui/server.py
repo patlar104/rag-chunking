@@ -10,6 +10,7 @@ Streams (Server-Sent Events at /api/stream):
     metrics  every 2 s: latency percentiles, error/retry/fallback rates, 10-minute series
     run.* / strategy.* / agentic.decision / semantic.distances / propositional.passage / call events
 """
+
 from __future__ import annotations
 
 import argparse
@@ -40,24 +41,35 @@ from webui.runner import Runner  # noqa: E402
 STATIC = Path(__file__).with_name("static")
 SAMPLES = {
     "redis-guide": ("Redis field guide (Markdown)", (ROOT / "sample.md").read_text(encoding="utf-8")),
-    "topic-shifts": ("Topic shifts (plain prose)", (
-        "Cats are small, carnivorous mammals that were domesticated thousands of years ago. They sleep for "
-        "twelve to sixteen hours a day. Cats groom themselves with their rough tongues, which keeps their coat "
-        "clean. A cat's whiskers help it judge whether it can fit through a gap.\n\n"
-        "Rust is a systems programming language focused on safety and speed. It guarantees memory safety "
-        "without a garbage collector. The borrow checker enforces ownership rules at compile time. Rust "
-        "programs compile to native code and often match C in performance.\n\n"
-        "The Great Barrier Reef is the world's largest coral reef system. It stretches for over two thousand "
-        "kilometres off the coast of Queensland. Rising ocean temperatures have caused several mass bleaching "
-        "events. Scientists monitor the reef with satellites and underwater surveys.\n\n"
-        "Sourdough bread is leavened with a culture of wild yeast and lactic acid bacteria. The starter must be "
-        "fed with flour and water regularly. Long fermentation gives the bread its tangy flavour. Bakers often "
-        "score the loaf before baking so it can expand evenly.")),
+    "topic-shifts": (
+        "Topic shifts (plain prose)",
+        (
+            "Cats are small, carnivorous mammals that were domesticated thousands of years ago. They sleep for "
+            "twelve to sixteen hours a day. Cats groom themselves with their rough tongues, which keeps their coat "
+            "clean. A cat's whiskers help it judge whether it can fit through a gap.\n\n"
+            "Rust is a systems programming language focused on safety and speed. It guarantees memory safety "
+            "without a garbage collector. The borrow checker enforces ownership rules at compile time. Rust "
+            "programs compile to native code and often match C in performance.\n\n"
+            "The Great Barrier Reef is the world's largest coral reef system. It stretches for over two thousand "
+            "kilometres off the coast of Queensland. Rising ocean temperatures have caused several mass bleaching "
+            "events. Scientists monitor the reef with satellites and underwater surveys.\n\n"
+            "Sourdough bread is leavened with a culture of wild yeast and lactic acid bacteria. The starter must be "
+            "fed with flour and water regularly. Long fermentation gives the bread its tangy flavour. Bakers often "
+            "score the loaf before baking so it can expand evenly."
+        ),
+    ),
 }
 
 # Event types forwarded to the browser (call events are trimmed to keep the stream light).
-FORWARD = {"agentic.start", "agentic.decision", "semantic.distances", "propositional.passage",
-           "llm.retry", "llm.json_failure", "fallback"}
+FORWARD = {
+    "agentic.start",
+    "agentic.decision",
+    "semantic.distances",
+    "propositional.passage",
+    "llm.retry",
+    "llm.json_failure",
+    "fallback",
+}
 CALLS = {"embed.call", "llm.call"}
 
 
@@ -89,9 +101,13 @@ runner = Runner(hub.publish)
 monitor = HealthMonitor(metrics, runner.state, host=os.environ.get("OLLAMA_HOST"))
 settings = {"embed": "hashing", "llm": "none"}
 # --public: safe defaults for an internet-facing deployment
-PUBLIC = {"enabled": os.environ.get("CHUNK_MONITOR_PUBLIC") == "1", "max_chars": 30_000, "max_queue": 3,
-          # hosted-model spend guard: LLM calls allowed per rolling hour (public mode only)
-          "llm_calls_per_hour": int(os.environ.get("CHUNK_MONITOR_LLM_BUDGET", "1500"))}
+PUBLIC = {
+    "enabled": os.environ.get("CHUNK_MONITOR_PUBLIC") == "1",
+    "max_chars": 30_000,
+    "max_queue": 3,
+    # hosted-model spend guard: LLM calls allowed per rolling hour (public mode only)
+    "llm_calls_per_hour": int(os.environ.get("CHUNK_MONITOR_LLM_BUDGET", "1500")),
+}
 
 
 if PUBLIC["enabled"]:
@@ -133,9 +149,26 @@ def on_event(ev):
             hub.publish(t, ev)
     elif t in CALLS:
         _count_call(ev)
-        hub.publish("call", {k: ev.get(k) for k in ("type", "ts", "run", "backend", "ms", "ok", "error", "n",
-                                                     "tokens_per_s", "completion_tokens", "json")}
-                    | {"trial": runner.in_trial})
+        hub.publish(
+            "call",
+            {
+                k: ev.get(k)
+                for k in (
+                    "type",
+                    "ts",
+                    "run",
+                    "backend",
+                    "ms",
+                    "ok",
+                    "error",
+                    "n",
+                    "tokens_per_s",
+                    "completion_tokens",
+                    "json",
+                )
+            }
+            | {"trial": runner.in_trial},
+        )
     elif t == "cache.lookup":
         hub.publish("cache", ev)
 
@@ -160,8 +193,12 @@ async def lifespan(app):
 
 app = FastAPI(title="Chunk Monitor", lifespan=lifespan)
 if PUBLIC["enabled"]:  # the dashboard is same-origin; only allow Perplexity-hosted origins cross-origin
-    app.add_middleware(CORSMiddleware, allow_origin_regex=r"https://([a-z0-9-]+\.)*(pplx\.app|perplexity\.ai)",
-                       allow_methods=["GET", "POST"], allow_headers=["content-type"])
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origin_regex=r"https://([a-z0-9-]+\.)*(pplx\.app|perplexity\.ai)",
+        allow_methods=["GET", "POST"],
+        allow_headers=["content-type"],
+    )
 else:
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
@@ -192,12 +229,16 @@ def _available():
             (embeds if is_embed else llms).append({"spec": f"ollama:{name}", "label": f"Ollama · {name}"})
     try:
         import sentence_transformers  # noqa: F401
+
         embeds.append({"spec": "st:all-MiniLM-L6-v2", "label": "sentence-transformers · all-MiniLM-L6-v2"})
     except ImportError:
         pass  # sentence-transformers not installed: just don't offer it
     from chunking import deepinfra
+
     if deepinfra.configured():
-        embeds.append({"spec": f"deepinfra:{deepinfra.DEFAULT_EMBED}", "label": f"DeepInfra · {deepinfra.DEFAULT_EMBED}"})
+        embeds.append(
+            {"spec": f"deepinfra:{deepinfra.DEFAULT_EMBED}", "label": f"DeepInfra · {deepinfra.DEFAULT_EMBED}"}
+        )
         llms.append({"spec": f"deepinfra:{deepinfra.DEFAULT_LLM}", "label": f"DeepInfra · {deepinfra.DEFAULT_LLM}"})
     if os.environ.get("OPENAI_API_KEY"):
         embeds.append({"spec": "openai:text-embedding-3-small", "label": "OpenAI · text-embedding-3-small"})
@@ -207,10 +248,15 @@ def _available():
 
 @app.get("/api/config")
 def config():
-    return {"strategies": list(STRATEGIES), "samples": {k: {"label": v[0], "text": v[1]} for k, v in SAMPLES.items()},
-            "available": _available(), "settings": settings,
-            "limits": {"max_chars": PUBLIC["max_chars"], "public": True,
-                       "llm_calls_per_hour": PUBLIC["llm_calls_per_hour"]} if PUBLIC["enabled"] else None}
+    return {
+        "strategies": list(STRATEGIES),
+        "samples": {k: {"label": v[0], "text": v[1]} for k, v in SAMPLES.items()},
+        "available": _available(),
+        "settings": settings,
+        "limits": {"max_chars": PUBLIC["max_chars"], "public": True, "llm_calls_per_hour": PUBLIC["llm_calls_per_hour"]}
+        if PUBLIC["enabled"]
+        else None,
+    }
 
 
 @app.post("/api/settings")
@@ -264,8 +310,9 @@ def create_run(body: RunIn):
         strategies = list(dict.fromkeys(body.strategies))  # no duplicates: each strategy runs once
         if len(strategies) > len(STRATEGIES):
             raise ValueError("too many strategies")
-        out = runner.submit(body.text, strategies, body.size, body.overlap,
-                            settings["embed"], settings["llm"], body.stability)
+        out = runner.submit(
+            body.text, strategies, body.size, body.overlap, settings["embed"], settings["llm"], body.stability
+        )
         return out | {"cancel_token": runner.runs[out["id"]]["cancel_token"]}
     except ValueError as e:
         raise HTTPException(400, str(e)) from None
@@ -307,8 +354,12 @@ async def stream(request: Request):
 
     async def gen():
         try:
-            hello = {"health": monitor.snapshot, "metrics": metrics.snapshot(), "worker": runner.state(),
-                     "settings": settings}
+            hello = {
+                "health": monitor.snapshot,
+                "metrics": metrics.snapshot(),
+                "worker": runner.state(),
+                "settings": settings,
+            }
             yield f"retry: 2000\nevent: hello\ndata: {json.dumps(hello, default=str)}\n\n"
             while True:
                 if await request.is_disconnected():
@@ -320,8 +371,9 @@ async def stream(request: Request):
         finally:
             hub.clients.discard(q)
 
-    return StreamingResponse(gen(), media_type="text/event-stream",
-                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+    return StreamingResponse(
+        gen(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+    )
 
 
 # Static UI last, so /api/* routes win. Relative asset paths work locally and behind a proxy.
@@ -334,14 +386,18 @@ def main():
     ap.add_argument("--port", type=int, default=8000)
     ap.add_argument("--embed", default="hashing", help="initial embedder spec (changeable in the UI)")
     ap.add_argument("--llm", default="none", help="initial LLM spec (changeable in the UI)")
-    ap.add_argument("--public", action="store_true",
-                    help="internet-facing mode: size/queue limits, settings restricted to detected backends")
+    ap.add_argument(
+        "--public",
+        action="store_true",
+        help="internet-facing mode: size/queue limits, settings restricted to detected backends",
+    )
     args = ap.parse_args()
     settings.update(embed=args.embed, llm=args.llm)
     PUBLIC["enabled"] = PUBLIC["enabled"] or args.public
     if PUBLIC["enabled"]:
         runner.llm_budget = PUBLIC["llm_calls_per_hour"]
     import uvicorn
+
     print(f"Chunk Monitor on http://{'localhost' if args.host in ('127.0.0.1', '0.0.0.0') else args.host}:{args.port}")
     uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
 

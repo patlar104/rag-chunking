@@ -1,4 +1,5 @@
 """Strategy 03: document-based chunking (preserve Markdown headers, tables, code)."""
+
 from __future__ import annotations
 
 import re
@@ -32,8 +33,7 @@ class MarkdownChunker:
       long prose blocks fall back to recursive splitting.
     """
 
-    def __init__(self, max_tokens: int = 300, include_heading_path: bool = True,
-                 length_fn: LengthFn = count_tokens):
+    def __init__(self, max_tokens: int = 300, include_heading_path: bool = True, length_fn: LengthFn = count_tokens):
         self.max_tokens = max_tokens
         self.include_heading_path = include_heading_path
         self.length = length_fn
@@ -60,8 +60,9 @@ class MarkdownChunker:
                 i = j
             elif _HEADING.match(line):
                 m = _HEADING.match(line)
-                blocks.append(Block("heading", start, start + len(line.rstrip("\n")),
-                                    level=len(m.group(1)), title=m.group(2)))
+                blocks.append(
+                    Block("heading", start, start + len(line.rstrip("\n")), level=len(m.group(1)), title=m.group(2))
+                )
                 i += 1
             elif _TABLE.match(line):
                 j = i
@@ -73,8 +74,13 @@ class MarkdownChunker:
                 i += 1
             else:
                 j = i
-                while (j < len(lines) and lines[j].strip() and not _HEADING.match(lines[j])
-                       and not _FENCE.match(lines[j]) and not _TABLE.match(lines[j])):
+                while (
+                    j < len(lines)
+                    and lines[j].strip()
+                    and not _HEADING.match(lines[j])
+                    and not _FENCE.match(lines[j])
+                    and not _TABLE.match(lines[j])
+                ):
                     j += 1
                 blocks.append(Block("text", start, offsets[j - 1] + len(lines[j - 1])))
                 i = j
@@ -123,16 +129,21 @@ class MarkdownChunker:
                 cur.clear()
 
         for b in blocks:
-            size = self.length(text[b.start:b.end])
+            size = self.length(text[b.start : b.end])
             if b.kind == "text" and size > self.max_tokens:
                 head = cur.pop() if cur and cur[-1].kind == "heading" else None
                 emit()
-                for k, c in enumerate(self._prose.split(text[b.start:b.end])):
+                for k, c in enumerate(self._prose.split(text[b.start : b.end])):
                     glue = head is not None and k == 0
-                    pieces.append((head.start if glue else b.start + c.start, b.start + c.end,
-                                   ["heading", "text"] if glue else ["text"]))
+                    pieces.append(
+                        (
+                            head.start if glue else b.start + c.start,
+                            b.start + c.end,
+                            ["heading", "text"] if glue else ["text"],
+                        )
+                    )
                 continue
-            if cur and self.length(text[cur[0].start:b.end]) > self.max_tokens:
+            if cur and self.length(text[cur[0].start : b.end]) > self.max_tokens:
                 # keep a heading glued to whatever follows it
                 carry = [cur.pop()] if cur[-1].kind == "heading" else []
                 emit()

@@ -2,6 +2,7 @@
 
 Set CHUNKING_LIVE_OLLAMA=1 to also run the live tests against a real local Ollama.
 """
+
 import json
 import os
 import sys
@@ -17,20 +18,25 @@ from chunking import AgenticChunker, PropositionalChunker, SemanticChunker, olla
 from chunking.embeddings import CachedEmbedder, HashingEmbedder, OllamaEmbedder, embed_query, get_embedder  # noqa: E402
 from chunking.llm import OllamaLLM, ask_json, get_llm  # noqa: E402
 
-PROSE = ("Cats are small mammals. They sleep for most of the day. Cats groom themselves often. "
-         "Rust is a systems programming language. It guarantees memory safety without a garbage collector. "
-         "Rust programs compile to native code. The Rust borrow checker enforces ownership rules.")
+PROSE = (
+    "Cats are small mammals. They sleep for most of the day. Cats groom themselves often. "
+    "Rust is a systems programming language. It guarantees memory safety without a garbage collector. "
+    "Rust programs compile to native code. The Rust borrow checker enforces ownership rules."
+)
 
 
 def toy_vector(text):
     t = text.lower()
-    return [t.count("cat") + t.count("they") + t.count("mammal") + 0.01,
-            t.count("rust") + t.count("memory") + t.count("borrow") + t.count("it ") + 0.01, 0.1]
+    return [
+        t.count("cat") + t.count("they") + t.count("mammal") + 0.01,
+        t.count("rust") + t.count("memory") + t.count("borrow") + t.count("it ") + 0.01,
+        0.1,
+    ]
 
 
 class FakeOllama(BaseHTTPRequestHandler):
     installed = {"nomic-embed-text:latest", "qwen2.5:1.5b"}
-    legacy = False          # simulate an old server without /api/embed
+    legacy = False  # simulate an old server without /api/embed
     requests = []
 
     def log_message(self, *a):
@@ -54,8 +60,11 @@ class FakeOllama(BaseHTTPRequestHandler):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         FakeOllama.requests.append((self.path, body))
         model = body.get("model", "")
-        if self.path in ("/api/embed", "/api/embeddings", "/api/chat") and \
-                model not in self.installed and f"{model}:latest" not in self.installed:
+        if (
+            self.path in ("/api/embed", "/api/embeddings", "/api/chat")
+            and model not in self.installed
+            and f"{model}:latest" not in self.installed
+        ):
             return self._send(404, {"error": f'model "{model}" not found, try pulling it first'})
         if self.path == "/api/embed":
             if self.legacy:
@@ -96,10 +105,10 @@ class OllamaEmbedderTests(WithFakeServer):
         emb = OllamaEmbedder("nomic-embed-text", host=self.host)
         vecs = emb(["a cat", "rust code"])
         self.assertEqual(len(vecs), 2)
-        self.assertAlmostEqual(sum(x * x for x in vecs[0]), 1.0, places=6)   # normalised
+        self.assertAlmostEqual(sum(x * x for x in vecs[0]), 1.0, places=6)  # normalised
         path, body = FakeOllama.requests[-1]
         self.assertEqual(path, "/api/embed")
-        self.assertEqual(body["input"][0], "search_document: a cat")          # nomic doc prefix
+        self.assertEqual(body["input"][0], "search_document: a cat")  # nomic doc prefix
         embed_query(emb, "what is rust?")
         self.assertEqual(FakeOllama.requests[-1][1]["input"], ["search_query: what is rust?"])
 
@@ -197,7 +206,9 @@ class LiveOllama(unittest.TestCase):
         emb = get_embedder(os.environ.get("CHUNKING_EMBED", "ollama:nomic-embed-text"))
         self.assertGreater(len(emb(["hello"])[0]), 100)
         llm = get_llm(os.environ.get("CHUNKING_LLM", "ollama:qwen2.5:1.5b"))
-        data = ask_json(llm, 'Reply with JSON {"ok": true}', {"type": "object", "properties": {"ok": {"type": "boolean"}}})
+        data = ask_json(
+            llm, 'Reply with JSON {"ok": true}', {"type": "object", "properties": {"ok": {"type": "boolean"}}}
+        )
         self.assertTrue(data["ok"])
 
 

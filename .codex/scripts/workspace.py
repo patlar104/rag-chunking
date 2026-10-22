@@ -1,4 +1,5 @@
 """Codex actions using the existing project venv; never install dependencies."""
+
 from __future__ import annotations
 
 import os
@@ -74,10 +75,23 @@ def main() -> int:
             else:
                 print("JavaScript syntax check unavailable: node is missing.", file=sys.stderr)
                 results.append(1)
-            results.append(run([
-                PYTHON, "-B", "-W", "error::ResourceWarning", "-m", "unittest",
-                "discover", "-s", "tests", "-v",
-            ], env))
+            results.append(
+                run(
+                    [
+                        PYTHON,
+                        "-B",
+                        "-W",
+                        "error::ResourceWarning",
+                        "-m",
+                        "unittest",
+                        "discover",
+                        "-s",
+                        "tests",
+                        "-v",
+                    ],
+                    env,
+                )
+            )
             result = int(any(results))
     print(f"Removed temporary cache: {cache}", flush=True)
     return result

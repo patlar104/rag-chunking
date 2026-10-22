@@ -13,6 +13,7 @@ Configuration (environment):
     DEEPINFRA_BASE_URL     default https://api.deepinfra.com/v1/openai (point at a proxy if needed)
     DEEPINFRA_AUTH_HEADER  send the token in this header instead, e.g. "x-api-key" for an auth proxy
 """
+
 from __future__ import annotations
 
 import json
@@ -42,8 +43,14 @@ def configured() -> bool:
 
 
 class Client:
-    def __init__(self, base_url: str | None = None, api_key: str | None = None,
-                 auth_header: str | None = None, timeout: float = 60, retries: int = 2):
+    def __init__(
+        self,
+        base_url: str | None = None,
+        api_key: str | None = None,
+        auth_header: str | None = None,
+        timeout: float = 60,
+        retries: int = 2,
+    ):
         self.base = (base_url or os.environ.get("DEEPINFRA_BASE_URL") or DEFAULT_BASE).rstrip("/")
         self.key = api_key if api_key is not None else os.environ.get("DEEPINFRA_API_KEY", "")
         self.auth_header = auth_header or os.environ.get("DEEPINFRA_AUTH_HEADER") or "Authorization"
@@ -95,8 +102,13 @@ class DeepInfraEmbedder(BaseEmbedder):
 
     batch_size = 64
 
-    def __init__(self, model: str = DEFAULT_EMBED, doc_prefix: str | None = None,
-                 query_prefix: str | None = None, **client_kw: Any):
+    def __init__(
+        self,
+        model: str = DEFAULT_EMBED,
+        doc_prefix: str | None = None,
+        query_prefix: str | None = None,
+        **client_kw: Any,
+    ):
         super().__init__(doc_prefix, query_prefix, model)
         self.model, self.name = model, f"deepinfra:{model}"
         self.client = Client(**client_kw)
@@ -109,16 +121,19 @@ class DeepInfraEmbedder(BaseEmbedder):
 class DeepInfraLLM:
     """Hosted chat model; `.complete_json` uses JSON mode."""
 
-    def __init__(self, model: str = DEFAULT_LLM, temperature: float = 0.0, max_tokens: int = 512,
-                 **client_kw: Any):
+    def __init__(self, model: str = DEFAULT_LLM, temperature: float = 0.0, max_tokens: int = 512, **client_kw: Any):
         self.model, self.name = model, f"deepinfra:{model}"
         self.temperature, self.max_tokens = temperature, max_tokens
         self.client = Client(**client_kw)
         self.calls = 0
 
     def _chat(self, prompt: str, json_mode: bool = False) -> str:
-        body: dict[str, Any] = {"model": self.model, "temperature": self.temperature, "max_tokens": self.max_tokens,
-                                "messages": [{"role": "user", "content": prompt}]}
+        body: dict[str, Any] = {
+            "model": self.model,
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+            "messages": [{"role": "user", "content": prompt}],
+        }
         if json_mode:
             body["response_format"] = {"type": "json_object"}
         self.calls += 1
