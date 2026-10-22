@@ -1,11 +1,11 @@
 name: Repo metadata
 
-# Keeps the issue labels (.github/labels.yml) and release milestones in sync with the repo.
+# Keeps the issue labels (.github/labels.json) and release milestones in sync with the repo.
 on:
   push:
     branches: [main]
     paths:
-      - .github/labels.yml
+      - .github/labels.json
       - .github/workflows/repo-metadata.yml
   workflow_dispatch:
 
@@ -23,10 +23,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: EndBug/label-sync@v2
-        with:
-          config-file: .github/labels.yml
-          delete-other-labels: false
+      - name: Sync labels
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # --force updates a label that already exists; labels not in the file are left alone
+          jq -r '.[] | [.name, .color, .description] | @tsv' .github/labels.json |
+            while IFS=$'\t' read -r name color description; do
+              gh label create "$name" --color "$color" --description "$description" --force
+            done
       - name: Ensure milestones exist
         env:
           GH_TOKEN: ${{ github.token }}
