@@ -11,6 +11,7 @@ To cut a release, move the **Unreleased** items into a new version section, bump
 ### Added
 - Codex contributor guidelines, repository skills, and local environment actions for validation, offline comparisons, and the dashboard, using the existing project virtual environment.
 - Claude Code cloud sessions run a `SessionStart` hook (`.claude/hooks/session-start.sh`) that creates `.venv` and installs `.[dev]`, so the full test suite and lint run immediately.
+- `.coderabbit.yaml` with review settings for CodeRabbit, including path instructions for the stdlib-only core, `--public` mode and the test conventions.
 
 ## [0.5.0] - 2026-10-20
 
