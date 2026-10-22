@@ -24,4 +24,4 @@ Backends are duck-typed callables, not subclasses of a shared interface:
 
 ## Verify
 
-Run `$check`, then `python demo.py --doctor` to confirm detection. Do not run live-backend tests or put a real key in any file unless the user supplies one for this purpose.
+Run the repo check (`/check` in Claude Code, `$check` in Codex), then `python demo.py --doctor` to confirm detection. Do not run live-backend tests or put a real key in any file unless the user supplies one for this purpose.

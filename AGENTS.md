@@ -43,4 +43,4 @@ Never commit or print API keys. Check API changes against `--public` protections
 
 ## Codex Workspace
 
-See `.codex/README.md` for environment actions and `.agents/skills/` for development and review workflows. Prefer the existing `.venv`; run `python3 -B .codex/scripts/workspace.py check` for validation. Lint edited Python and syntax-check changed dashboard JavaScript before finishing. Preserve `.claude/` and `CLAUDE.md`. Leave changes uncommitted unless requested.
+See `.codex/README.md` for environment actions and `.agents/skills/` for development and review workflows. Prefer the existing `.venv`; run `python3 -B .codex/scripts/workspace.py check` for validation. Lint edited Python and syntax-check changed dashboard JavaScript before finishing. Preserve `.claude/` and `CLAUDE.md`. The skills `add-backend` and `add-chunking-strategy` live only in `.agents/skills/`; `.claude/skills/` holds symlinks to them, so edit the `.agents` copy. Leave changes uncommitted unless requested.

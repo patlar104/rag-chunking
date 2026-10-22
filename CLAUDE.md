@@ -45,3 +45,4 @@ The owner's target is **Python 3.13 or newer (3.15 recommended)**; do not add co
 - Tests are `unittest`, not pytest. Backend tests use fake in-process Ollama/DeepInfra HTTP servers instead of mocks; follow that pattern for new client code.
 - Never read or print real API keys (`DEEPINFRA_API_KEY`, `OPENAI_API_KEY`); tests must not require them.
 - Test counts and file listings in `README.md` ("75 tests") drift; update them if you add tests or modules.
+- The `add-backend` and `add-chunking-strategy` skills are shared with Codex: the real files are in `.agents/skills/`, and `.claude/skills/` holds symlinks to them. Edit the `.agents` copy and keep the wording tool-neutral (`/check` in Claude Code, `$check` in Codex).
