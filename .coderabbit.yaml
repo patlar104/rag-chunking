@@ -7,6 +7,9 @@ reviews:
   auto_review:
     enabled: true
     drafts: false
+  pre_merge_checks:
+    docstrings:
+      mode: "off"   # quoted: bare `off` parses as boolean false; this repo documents sparingly by design
   path_filters:
     - "!docs/**"
     - "!**/*.png"

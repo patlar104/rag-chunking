@@ -11,7 +11,7 @@ To cut a release, move the **Unreleased** items into a new version section, bump
 ### Added
 - Codex contributor guidelines, repository skills, and local environment actions for validation, offline comparisons, and the dashboard, using the existing project virtual environment.
 - Claude Code cloud sessions run a `SessionStart` hook (`.claude/hooks/session-start.sh`) that creates `.venv` and installs `.[dev]`, so the full test suite and lint run immediately.
-- `.coderabbit.yaml` with review settings for CodeRabbit, including path instructions for the stdlib-only core, `--public` mode and the test conventions.
+- `.coderabbit.yaml` with review settings for CodeRabbit, including path instructions for the stdlib-only core, `--public` mode and the test conventions, with CodeRabbit's docstring-coverage check turned off.
 - Issue forms for bug reports and feature requests, a label set in `.github/labels.json`, and a `Repo metadata` workflow that syncs those labels and creates the `v0.5.1` and `v0.6.0` milestones when merged to `main`.
 
 ## [0.5.0] - 2026-10-20
