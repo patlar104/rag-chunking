@@ -13,7 +13,10 @@ fi
 
 export PIP_DISABLE_PIP_VERSION_CHECK=1
 
-[ -x .venv/bin/python ] || python3 -m venv .venv
+# Rebuild a missing venv or one whose interpreter is gone or older than 3.13.
+if ! .venv/bin/python -c 'import sys; sys.exit(sys.version_info < (3, 13))' 2>/dev/null; then
+  python3 -m venv --clear .venv
+fi
 .venv/bin/pip install --quiet -e ".[dev]"
 
 if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
