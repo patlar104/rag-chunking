@@ -7,15 +7,24 @@ set -euo pipefail
 
 cd "${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 
-if ! python3 -c 'import sys; sys.exit(sys.version_info < (3, 13))'; then
-  echo "warning: $(python3 --version) is older than the required Python 3.13" >&2
-fi
-
 export PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Rebuild a missing venv or one whose interpreter is gone or older than 3.13.
+# Rebuild a missing venv or one whose interpreter is gone or older than 3.13,
+# using the first interpreter on PATH that is 3.13 or newer.
 if ! .venv/bin/python -c 'import sys; sys.exit(sys.version_info < (3, 13))' 2>/dev/null; then
-  python3 -m venv --clear .venv
+  python_bin=
+  for candidate in python3 python3.15 python3.14 python3.13; do
+    if command -v "$candidate" >/dev/null 2>&1 &&
+       "$candidate" -c 'import sys; sys.exit(sys.version_info < (3, 13))' 2>/dev/null; then
+      python_bin=$candidate
+      break
+    fi
+  done
+  if [ -z "$python_bin" ]; then
+    echo "error: Python 3.13 or newer is required to build .venv (python3 is $(python3 --version 2>&1))" >&2
+    exit 1
+  fi
+  "$python_bin" -m venv --clear .venv
 fi
 .venv/bin/pip install --quiet -e ".[dev]"
 
